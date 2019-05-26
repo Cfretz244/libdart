@@ -106,6 +106,21 @@ benchmark_helper/lookup_finalized_random_fields/1/256                17 ns      
 benchmark_helper/lookup_finalized_random_fields/8/256               146 ns        146 ns    4725675 finalized random field lookups=54.8849M/s
 benchmark_helper/lookup_finalized_random_fields/64/256             1671 ns       1670 ns     412155 finalized random field lookups=38.3215M/s
 benchmark_helper/lookup_finalized_random_fields/256/256           10144 ns      10137 ns      64578 finalized random field lookups=25.255M/s
+benchmark_helper/lookup_finalized_colliding_fields/0/16/8           271 ns        270 ns    2598589 field collisions=0 finalized random field lookups=59.2782M/s
+benchmark_helper/lookup_finalized_colliding_fields/8/16/8           272 ns        271 ns    2561691 field collisions=2 finalized random field lookups=58.9949M/s
+benchmark_helper/lookup_finalized_colliding_fields/32/16/8          309 ns        308 ns    2440827 field collisions=6 finalized random field lookups=51.9872M/s
+benchmark_helper/lookup_finalized_colliding_fields/64/16/8          324 ns        322 ns    2230827 field collisions=11 finalized random field lookups=49.6576M/s
+benchmark_helper/lookup_finalized_colliding_fields/100/16/8         376 ns        374 ns    1887372 field collisions=16 finalized random field lookups=42.7729M/s
+benchmark_helper/lookup_finalized_colliding_fields/0/64/8          1384 ns       1377 ns     516613 field collisions=0 finalized random field lookups=46.4789M/s
+benchmark_helper/lookup_finalized_colliding_fields/8/64/8          1400 ns       1392 ns     493639 field collisions=6 finalized random field lookups=45.9774M/s
+benchmark_helper/lookup_finalized_colliding_fields/32/64/8         1372 ns       1366 ns     490254 field collisions=21 finalized random field lookups=46.8557M/s
+benchmark_helper/lookup_finalized_colliding_fields/64/64/8         1536 ns       1529 ns     455842 field collisions=41 finalized random field lookups=41.8711M/s
+benchmark_helper/lookup_finalized_colliding_fields/100/64/8        2580 ns       2568 ns     275115 field collisions=64 finalized random field lookups=24.9239M/s
+benchmark_helper/lookup_finalized_colliding_fields/0/256/8        11806 ns      11749 ns      57614 field collisions=0 finalized random field lookups=21.7889M/s
+benchmark_helper/lookup_finalized_colliding_fields/8/256/8        11538 ns      11485 ns      59236 field collisions=21 finalized random field lookups=22.2899M/s
+benchmark_helper/lookup_finalized_colliding_fields/32/256/8       11491 ns      11429 ns      61388 field collisions=82 finalized random field lookups=22.3985M/s
+benchmark_helper/lookup_finalized_colliding_fields/64/256/8       11208 ns      11124 ns      62636 field collisions=164 finalized random field lookups=23.013M/s
+benchmark_helper/lookup_finalized_colliding_fields/100/256/8      19896 ns      19788 ns      34480 field collisions=256 finalized random field lookups=12.9373M/s
 benchmark_helper/lookup_dynamic_fields                              577 ns        577 ns    1203183 dynamic field lookups=25.9929M/s
 benchmark_helper/lookup_dynamic_random_fields/1/4                    18 ns         18 ns   36184313 dynamic random field lookups=55.0258M/s
 benchmark_helper/lookup_dynamic_random_fields/8/4                   241 ns        240 ns    2856583 dynamic random field lookups=33.318M/s
@@ -202,6 +217,43 @@ generated.
 
 Each separate _repetition_ of each test case performed operates on an
 _independently generated_ set of random keys.
+
+### Lookup Finalized Colliding Fields
+This is a family of benchmark cases that test the performance of key-lookups when
+the keyspace of the packet being tested is intentionally filled with prefix collisions
+(uses `dart::buffer`).
+
+The test cases are generated from the following parameter matrix:
+
+| Percentage of Collisions in Packet | Number of Keys in Packet | Number of Characters per Key |
+|:----------------------------------:|:------------------------:|:----------------------------:|
+|                 0                  |            16            |               8              |
+|                 8                  |            16            |               8              |
+|                32                  |            16            |               8              |
+|                64                  |            16            |               8              |
+|               100                  |            16            |               8              |
+|                 0                  |            64            |               8              |
+|                 8                  |            64            |               8              |
+|                32                  |            64            |               8              |
+|                64                  |            64            |               8              |
+|               100                  |            64            |               8              |
+|                 0                  |           256            |               8              |
+|                 8                  |           256            |               8              |
+|                32                  |           256            |               8              |
+|                64                  |           256            |               8              |
+|               100                  |           256            |               8              |
+
+This is considered to be the second most important test-case from a performance perspective,
+and serves to validate the real-world applicability of **Dart**'s prefix optimizations.
+
+It is performed by first generating a random set of keys that _do not_ have any collisions
+in their prefix bytes (best case scenario for **Dart**), and then intentionally inserting
+additional, randomly colliding, keys until the requested collision percentage is reached
+(will always generate _at least_ the percentage requested, may actually generate a higher
+percentage depending on the total number of keys requested).
+
+Each separate _repetition_ of each test case performed operates on an
+_independently generated_ set of randomly colliding keys.
 
 ### Lookup Dynamic Random Fields
 This is a family of benchmark cases that test the performance of key-lookups on

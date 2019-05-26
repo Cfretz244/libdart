@@ -3,6 +3,7 @@
 #include <random>
 #include <cassert>
 #include <algorithm>
+#include <unordered_set>
 #include <benchmark/benchmark.h>
 
 #ifdef DART_HAS_FLEXBUFFERS
@@ -48,7 +49,30 @@ struct benchmark_helper : benchmark::Fixture {
 
 /*---- Helpers -----*/
 
-std::string rand_string(size_t len);
+std::string rand_string(size_t len, dart::shim::string_view prefix = "") {
+  static std::mt19937 engine(std::random_device {}());
+  static std::vector<char> alpha {
+    'a', 'b', 'c', 'd', 'e', 'f', 'g',
+    'h', 'i', 'j', 'k', 'l', 'm', 'n',
+    'o', 'p', 'q', 'r', 's', 't', 'u',
+    'v', 'w', 'x', 'y', 'z'
+  };
+
+  std::string retval {prefix};
+  retval.resize(len, '\0');
+  std::uniform_int_distribution<> dist(0, alpha.size() - 1);
+  std::generate(retval.begin() + prefix.size(), retval.end(), [&] { return alpha[dist(engine)]; });
+  return retval;
+}
+
+template <class Container>
+typename Container::value_type rand_pick(Container const& cont) {
+  static std::mt19937 engine(std::random_device {}());
+
+  typename Container::value_type chosen;
+  std::sample(std::begin(cont), std::end(cont), &chosen, 1, engine);
+  return chosen;
+}
 
 /*----- Benchmark Definitions -----*/
 
@@ -114,6 +138,63 @@ BENCHMARK_DEFINE_F(benchmark_helper, lookup_finalized_random_fields) (benchmark:
 
 BENCHMARK_REGISTER_F(benchmark_helper, lookup_finalized_random_fields)->Ranges({{1 << 0, 1 << 8}, {1 << 2, 1 << 8}});
 
+BENCHMARK_DEFINE_F(benchmark_helper, lookup_finalized_colliding_fields) (benchmark::State& state) {
+  struct hasher {
+    auto operator ()(std::string const& str) const {
+      // Inefficient, but it'll work.
+      return std::hash<std::string> {}(str.substr(0, 2));
+    }
+  };
+  struct eq {
+    auto operator ()(std::string const& lhs, std::string const& rhs) const {
+      return lhs[0] == rhs[0] && lhs[1] == rhs[1];
+    }
+  };
+
+  // Generate a unique set of random strings without collisions.
+  std::unordered_set<std::string, hasher, eq> unique;
+  auto collision_percent = state.range(0) / 100.0;
+  size_t num_keys = state.range(1), key_len = state.range(2), num_collisions = std::ceil(num_keys * collision_percent);
+  while (unique.size() != num_keys - num_collisions) unique.insert(rand_string(key_len));
+
+  // Inject collisions.
+  std::unordered_set<std::string> keys {unique.begin(), unique.end()};
+  while (keys.size() != num_keys) {
+    auto collision = rand_pick(keys);
+    keys.insert(rand_string(key_len, collision.substr(0, 2)));
+  }
+
+  // Generate the packet.
+  unsafe_packet::object pkt;
+  for (auto const& key : keys) pkt.add_field(key, key);
+
+  // Run the test.
+  unsafe_buffer::object data {pkt};
+  for (auto _ : state) {
+    for (auto const& key : keys) benchmark::DoNotOptimize(data[key]);
+    rate_counter += data.size();
+  }
+  state.counters["field collisions"] = num_collisions;
+  state.counters["finalized random field lookups"] = rate_counter;
+}
+
+BENCHMARK_REGISTER_F(benchmark_helper, lookup_finalized_colliding_fields)
+  ->Args({0, 16, 8})
+  ->Args({8, 16, 8})
+  ->Args({32, 16, 8})
+  ->Args({64, 16, 8})
+  ->Args({100, 16, 8})
+  ->Args({0, 64, 8})
+  ->Args({8, 64, 8})
+  ->Args({32, 64, 8})
+  ->Args({64, 64, 8})
+  ->Args({100, 64, 8})
+  ->Args({0, 256, 8})
+  ->Args({8, 256, 8})
+  ->Args({32, 256, 8})
+  ->Args({64, 256, 8})
+  ->Args({100, 256, 8});
+
 #ifdef DART_HAS_FLEXBUFFERS
 BENCHMARK_DEFINE_F(benchmark_helper, flexbuffer_lookup_finalized_random_fields) (benchmark::State& state) {
   // Generate some random strings.
@@ -123,7 +204,7 @@ BENCHMARK_DEFINE_F(benchmark_helper, flexbuffer_lookup_finalized_random_fields) 
   // Build a flexbuffer.
   flexbuffers::Builder fbb;
   fbb.Map([&] {
-    for (auto& key : keys) fbb.String(key.data(), key.data());
+    for (auto const& key : keys) fbb.String(key.data(), key.data());
   });
   fbb.Finish();
 
@@ -133,7 +214,7 @@ BENCHMARK_DEFINE_F(benchmark_helper, flexbuffer_lookup_finalized_random_fields) 
 
   // Run the test.
   for (auto _ : state) {
-    for (auto& key : keys) benchmark::DoNotOptimize(pkt[key.data()]);
+    for (auto const& key : keys) benchmark::DoNotOptimize(pkt[key.data()]);
     rate_counter += pkt.size();
   }
   state.counters["finalized random field lookups"] = rate_counter;
@@ -150,14 +231,14 @@ BENCHMARK_DEFINE_F(benchmark_helper, sajson_lookup_finalized_random_fields) (ben
 
   // sajson only parses json, so we need to go through dart as an intermediary.
   auto tmp = dart::packet::object();
-  for (auto& key : keys) tmp.add_field(key, key);
+  for (auto const& key : keys) tmp.add_field(key, key);
   auto json = tmp.to_json();
   auto doc = sajson::parse(sajson::single_allocation(), sajson::string {json.data(), json.size()});
 
   // Run the test.
   auto obj = doc.get_root();
   for (auto _ : state) {
-    for (auto& key : keys) {
+    for (auto const& key : keys) {
       sajson::string str {key.data(), key.size()};
       benchmark::DoNotOptimize(obj.get_value_of_key(str));
     }
@@ -343,21 +424,6 @@ unsafe_packet benchmark_helper::generate_dynamic_nested_packet() const {
   album.push_back("wish you were here").push_back("shine on you crazy diamond 6-9");
   base.add_field("wish you were here", std::move(album));
   return base;
-}
-
-std::string rand_string(size_t len) {
-  static std::mt19937 engine(std::random_device{}());
-  static std::vector<char> alpha {
-    'a', 'b', 'c', 'd', 'e', 'f', 'g',
-    'h', 'i', 'j', 'k', 'l', 'm', 'n',
-    'o', 'p', 'q', 'r', 's', 't', 'u',
-    'v', 'w', 'x', 'y', 'z'
-  };
-
-  std::string retval(len, 0);
-  std::uniform_int_distribution<> dist(0, alpha.size() - 1);
-  std::generate(retval.begin(), retval.end(), [&] { return alpha[dist(engine)]; });
-  return retval;
 }
 
 std::tuple<std::string, unsafe_packet> benchmark_helper::generate_finalized_packet(unsafe_packet base) const {
