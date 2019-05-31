@@ -769,9 +769,15 @@ namespace dart {
         sorted.push_back(it);
       }
       std::sort(sorted.begin(), sorted.end(), [] (auto& lhs, auto& rhs) {
-        shim::string_view l {lhs->name.GetString(), lhs->name.GetStringLength()};
-        shim::string_view r {rhs->name.GetString(), rhs->name.GetStringLength()};
-        return l < r;
+        auto lhs_len = lhs->name.GetStringLength();
+        auto rhs_len = rhs->name.GetStringLength();
+        if (lhs_len == rhs_len) {
+          shim::string_view l {lhs->name.GetString(), lhs_len};
+          shim::string_view r {rhs->name.GetString(), rhs_len};
+          return l < r;
+        } else {
+          return lhs_len < rhs_len;
+        }
       });
 
       // Iterate over our elements and write each one into the buffer.
@@ -880,6 +886,7 @@ namespace dart {
       size_t const num_keys = size();
 
       // Run binary search to find the key.
+      auto const key_size = key.size();
       gsl::byte const* target = nullptr;
       auto type = detail::raw_type::null;
       int32_t low = 0, high = num_keys - 1;
@@ -893,7 +900,9 @@ namespace dart {
         auto comparison = -entry.prefix_compare(key);
         if (!comparison) {
           auto const* curr_str = detail::get_string({detail::raw_type::string, base + entry.get_offset()});
-          comparison = key.compare(curr_str->get_strv());
+          auto const curr_view = curr_str->get_strv();
+          auto const curr_size = curr_view.size();
+          comparison = (curr_size == key_size) ? key.compare(curr_view) : key_size - curr_size;
         }
 
         // Update.

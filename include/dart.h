@@ -6262,7 +6262,7 @@ namespace dart {
       type_data data;
 
       static constexpr auto sso_bytes = sizeof(inline_string_layout::buffer);
-      static constexpr int max_aggregate_size = 1 << detail::object_entry::offset_bits;
+      static constexpr auto max_aggregate_size = detail::object_layout::max_offset;
 
       /*----- Friends -----*/
 

@@ -395,16 +395,25 @@ namespace dart {
 
     template <template <class> class RefCount>
     bool map_comparator<RefCount>::operator ()(basic_heap<RefCount> const& lhs, shim::string_view rhs) const {
-      return lhs.strv() < rhs;
+      auto const lhs_size = lhs.size();
+      auto const rhs_size = rhs.size();
+      if (lhs_size != rhs_size) return lhs_size < rhs_size;
+      else return lhs.strv() < rhs;
     }
 
     template <template <class> class RefCount>
     bool map_comparator<RefCount>::operator ()(shim::string_view lhs, basic_heap<RefCount> const& rhs) const {
-      return lhs < rhs.strv();
+      auto const lhs_size = lhs.size();
+      auto const rhs_size = rhs.size();
+      if (lhs_size != rhs_size) return lhs_size < rhs_size;
+      else return lhs < rhs.strv();
     }
 
     template <template <class> class RefCount>
     bool map_comparator<RefCount>::operator ()(basic_heap<RefCount> const& lhs, basic_heap<RefCount> const& rhs) const {
+      auto const lhs_size = lhs.size();
+      auto const rhs_size = rhs.size();
+      if (lhs_size != rhs_size) return lhs_size < rhs_size;
       return lhs.strv() < rhs.strv();
     }
 
@@ -428,26 +437,31 @@ namespace dart {
       if (type == detail::raw_type::small_string) type = detail::raw_type::string;
 
       // Create our combined entry for the vtable.
-      layout.meta = (static_cast<uint32_t>(type) << offset_bits) | offset;
+      layout.offset = offset;
+      layout.type = static_cast<uint8_t>(type);
     }
 
     template <class T>
     raw_type vtable_entry<T>::get_type() const noexcept {
-      return detail::raw_type(layout.meta >> offset_bits);
+      return raw_type {layout.type.get()};
     }
 
     template <class T>
     uint32_t vtable_entry<T>::get_offset() const noexcept {
-      return layout.meta & offset_mask;
+      return layout.offset;
     }
 
-    template <class Prefix>
-    prefix_entry<Prefix>::prefix_entry(detail::raw_type type, uint32_t offset, shim::string_view prefix) noexcept :
+    inline prefix_entry::prefix_entry(detail::raw_type type, uint32_t offset, shim::string_view prefix) noexcept :
       vtable_entry<prefix_entry>(type, offset)
     {
       // Decide how many bytes we're going to copy out of the key.
       auto bytes = prefix.size();
       if (bytes > sizeof(this->layout.prefix)) bytes = sizeof(this->layout.prefix);
+
+      // Set the length, truncating down to 256.
+      auto max_len = std::numeric_limits<uint8_t>::max();
+      if (prefix.size() < max_len) this->layout.len = prefix.size();
+      else this->layout.len = max_len;
 
       // Try SO HARD not to violate strict aliasing rules, while copying those characters into an integer.
       // This is probably all still undefined behavior.
@@ -458,15 +472,27 @@ namespace dart {
       this->layout.prefix = *shim::launder(reinterpret_cast<prefix_type const*>(&raw));
     }
 
-    template <class Prefix>
-    int prefix_entry<Prefix>::prefix_compare(shim::string_view str) const noexcept {
+    inline int prefix_entry::prefix_compare(shim::string_view str) const noexcept {
+      // Cache all of our lengths and stuff.
+      auto const their_len = str.size();
+      auto const our_len = this->layout.len;
+      constexpr auto max_len = std::numeric_limits<uint8_t>::max();
+
+      // Compare first by string lengths, then by lexical ordering.
+      // If they are longer than us, but we're capped at the max value,
+      // return equality to force key lookup to fall back on the general case.
+      if (our_len < their_len) return (our_len == max_len) ? 0 : -1;
+      else if (our_len == their_len) return compare_impl(str.data(), their_len);
+      else return 1;
+    }
+
+    inline int prefix_entry::compare_impl(char const* const str, size_t const len) const noexcept {
       // Fast path where we attempt to perform a direct integer comparison.
-      auto len = str.size();
-      if (len >= sizeof(this->layout.prefix)) {
+      if (len >= sizeof(prefix_type)) {
         // Despite all my hard work, this is probably still undefined behavior.
         // FIXME: It is because, _officially speaking_, we're reading an unitialized integer.
         storage_t raw {};
-        std::copy_n(str.data(), sizeof(this->layout.prefix), reinterpret_cast<char*>(&raw));
+        std::copy_n(str, sizeof(this->layout.prefix), reinterpret_cast<char*>(&raw));
         new(&raw) prefix_type;
         if (*shim::launder(reinterpret_cast<prefix_type const*>(&raw)) == this->layout.prefix) {
           return 0;
@@ -475,7 +501,7 @@ namespace dart {
 
       // Fallback path where we actually compare the prefixes.
       auto* bytes = reinterpret_cast<char const*>(&this->layout.prefix);
-      return detail::prefix_compare_impl<sizeof(Prefix)>(bytes, str.data(), len);
+      return detail::prefix_compare_impl<sizeof(prefix_type)>(bytes, str, len);
     }
 
   }
