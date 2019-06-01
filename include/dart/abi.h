@@ -7,8 +7,8 @@
 
 /*----- Macros ------*/
 
-#define DART_BUFFER_MAX_SIZE  (1 << 5)
-#define DART_HEAP_MAX_SIZE    (1 << 6)
+#define DART_BUFFER_MAX_SIZE  (1U << 5U)
+#define DART_HEAP_MAX_SIZE    (1U << 6U)
 #define DART_PACKET_MAX_SIZE  DART_HEAP_MAX_SIZE
 
 #ifdef __cplusplus
@@ -82,19 +82,38 @@ extern "C" {
   /*----- Public Function Declarations -----*/
 
   // dart::heap lifecycle functions.
-  dart_err dart_heap_init(dart_heap_t* pkt, dart_rc_type rc);
+  dart_err dart_heap_init(dart_heap_t* pkt);
+  dart_err dart_heap_init_rc(dart_heap_t* pkt, dart_rc_type rc);
   dart_err dart_heap_copy(dart_heap_t* dst, dart_heap_t const* src);
   dart_err dart_heap_move(dart_heap_t* dst, dart_heap_t* src);
   dart_err dart_heap_destroy(dart_heap_t* pkt);
 
+  // dart::heap typed constructors.
+  dart_err dart_heap_init_obj(dart_heap_t* pkt);
+  dart_err dart_heap_init_obj_rc(dart_heap_t* pkt, dart_rc_type rc);
+  dart_err dart_heap_init_arr(dart_heap_t* pkt);
+  dart_err dart_heap_init_arr_rc(dart_heap_t* pkt, dart_rc_type rc);
+  dart_err dart_heap_init_str(dart_heap_t* pkt, char const* str, size_t len);
+  dart_err dart_heap_init_str_rc(dart_heap_t* pkt, dart_rc_type rc, char const* str, size_t len);
+  dart_err dart_heap_init_int(dart_heap_t* pkt, int64_t val);
+  dart_err dart_heap_init_int_rc(dart_heap_t* pkt, dart_rc_type rc, int64_t val);
+  dart_err dart_heap_init_dcm(dart_heap_t* pkt, double val);
+  dart_err dart_heap_init_dcm_rc(dart_heap_t* pkt, dart_rc_type rc, double val);
+  dart_err dart_heap_init_bool(dart_heap_t* pkt, int val);
+  dart_err dart_heap_init_bool_rc(dart_heap_t* pkt, dart_rc_type rc, int val);
+  dart_err dart_heap_init_null(dart_heap_t* pkt);
+  dart_err dart_heap_init_null_rc(dart_heap_t* pkt, dart_rc_type rc);
+
   // dart::buffer lifecycle functions.
-  dart_err dart_buffer_init(dart_buffer_t* pkt, dart_rc_type rc);
+  dart_err dart_buffer_init(dart_buffer_t* pkt);
+  dart_err dart_buffer_init_rc(dart_buffer_t* pkt, dart_rc_type rc);
   dart_err dart_buffer_copy(dart_buffer_t* dst, dart_buffer_t const* src);
   dart_err dart_buffer_move(dart_buffer_t* dst, dart_buffer_t* src);
   dart_err dart_buffer_destroy(dart_buffer_t* pkt);
 
   // dart::packet lifecycle functions.
-  dart_err dart_packet_init(dart_packet_t* pkt, dart_rc_type rc);
+  dart_err dart_packet_init(dart_packet_t* pkt);
+  dart_err dart_packet_init_rc(dart_packet_t* pkt, dart_rc_type rc);
   dart_err dart_packet_copy(dart_packet_t* dst, dart_packet_t const* src);
   dart_err dart_packet_move(dart_packet_t* dst, dart_packet_t* src);
   dart_err dart_packet_destroy(dart_packet_t* pkt);
