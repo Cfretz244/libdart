@@ -755,6 +755,49 @@ namespace dart {
 
   namespace detail {
 
+#ifdef DART_USE_SAJSON
+    template <template <class> class RefCount>
+    object<RefCount>::object(sajson::value fields) noexcept : elems(fields.get_length()) {
+      // Iterate over our elements and write each one into the buffer.
+      object_entry* entry = vtable();
+      size_t offset = reinterpret_cast<gsl::byte*>(&vtable()[elems]) - DART_FROM_THIS_MUT;
+      for (auto idx = 0U; idx < elems; ++idx) {
+        // Using the current offset, align a pointer for the key (string type).
+        auto* unaligned = DART_FROM_THIS_MUT + offset;
+        auto* aligned = detail::align_pointer<RefCount>(unaligned, detail::raw_type::string);
+        offset += aligned - unaligned;
+
+        // Get our key/value from sajson.
+        auto key = fields.get_object_key(idx);
+        auto val = fields.get_object_value(idx);
+
+        // Construct the vtable entry.
+        shim::string_view keyv {key.data(), key.length()};
+        auto val_type = json_identify<RefCount>(val);
+        new(entry++) object_entry(val_type, offset, keyv);
+
+        // Layout our key.
+        new(aligned) string(keyv);
+        offset += find_sizeof<RefCount>({raw_type::string, aligned});
+
+        // Realign our pointer for our value type.
+        unaligned = DART_FROM_THIS_MUT + offset;
+        aligned = detail::align_pointer<RefCount>(unaligned, val_type);
+        offset += aligned - unaligned;
+
+        // Layout our value (or copy it in if it's already been finalized).
+        offset += json_lower<RefCount>(aligned, val);
+      }
+
+      // This is necessary to ensure packets can be naively stored in
+      // contiguous buffers without ruining their alignment.
+      offset = detail::pad_bytes<RefCount>(offset, detail::raw_type::object);
+
+      // object is laid out, write in our final size.
+      bytes = offset;
+    }
+#endif
+
 #if DART_HAS_RAPIDJSON
     template <template <class> class RefCount>
     object<RefCount>::object(rapidjson::Value const& fields) noexcept : elems(fields.MemberCount()) {

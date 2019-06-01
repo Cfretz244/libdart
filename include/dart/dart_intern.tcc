@@ -23,6 +23,74 @@ namespace dart {
       else return 0;
     }
 
+#ifdef DART_USE_SAJSON
+    // FIXME: Find somewhere better to put these functions.
+    template <template <class> class RefCount>
+    raw_type json_identify(sajson::value curr_val) {
+      switch (curr_val.get_type()) {
+        case sajson::TYPE_OBJECT:
+          return raw_type::object;
+        case sajson::TYPE_ARRAY:
+          return raw_type::array;
+        case sajson::TYPE_STRING:
+          // Figure out what type of string we've been given.
+          return identify_string<RefCount>({curr_val.as_cstring(), curr_val.get_string_length()});
+        case sajson::TYPE_INTEGER:
+          return identify_integer(curr_val.get_integer_value());
+        case sajson::TYPE_DOUBLE:
+          return identify_decimal(curr_val.get_double_value());
+        case sajson::TYPE_FALSE:
+        case sajson::TYPE_TRUE:
+          return raw_type::boolean;
+        default:
+          DART_ASSERT(curr_val.get_type() == sajson::TYPE_NULL);
+          return raw_type::null;
+      }
+    }
+
+    template <template <class> class RefCount>
+    size_t json_lower(gsl::byte* buffer, sajson::value curr_val) {
+      auto raw = json_identify<RefCount>(curr_val);
+      switch (raw) {
+        case raw_type::object:
+          new(buffer) object<RefCount>(curr_val);
+          break;
+        case raw_type::array:
+          new(buffer) array<RefCount>(curr_val);
+          break;
+        case raw_type::small_string:
+        case raw_type::string:
+          new(buffer) string(curr_val.as_cstring(), curr_val.get_string_length());
+          break;
+        case raw_type::big_string:
+          new(buffer) big_string(curr_val.as_cstring(), curr_val.get_string_length());
+          break;
+        case raw_type::short_integer:
+          new(buffer) primitive<int16_t>(curr_val.get_integer_value());
+          break;
+        case raw_type::integer:
+          new(buffer) primitive<int32_t>(curr_val.get_integer_value());
+          break;
+        case raw_type::long_integer:
+          new(buffer) primitive<int64_t>(curr_val.get_integer_value());
+          break;
+        case raw_type::decimal:
+          new(buffer) primitive<float>(curr_val.get_double_value());
+          break;
+        case raw_type::long_decimal:
+          new(buffer) primitive<double>(curr_val.get_double_value());
+          break;
+        case raw_type::boolean:
+          new(buffer) detail::primitive<bool>((curr_val.get_type() == sajson::TYPE_TRUE) ? true : false);
+          break;
+        default:
+          DART_ASSERT(curr_val.get_type() == sajson::TYPE_NULL);
+          break;
+      }
+      return detail::find_sizeof<RefCount>({raw, buffer});
+    }
+#endif
+
 #if DART_HAS_RAPIDJSON
     // FIXME: Find somewhere better to put these functions.
     template <template <class> class RefCount>
@@ -63,7 +131,7 @@ namespace dart {
           new(buffer) string(curr_val.GetString(), curr_val.GetStringLength());
           break;
         case raw_type::big_string:
-          new(buffer) big_string(curr_val.GetString(), curr_val.Size());
+          new(buffer) big_string(curr_val.GetString(), curr_val.GetStringLength());
           break;
         case raw_type::short_integer:
           new(buffer) primitive<int16_t>(curr_val.GetInt());

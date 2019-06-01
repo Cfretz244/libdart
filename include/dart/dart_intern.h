@@ -3,7 +3,7 @@
 
 // Automatically detect libraries if possible.
 #if defined(__has_include)
-# if !defined(DART_HAS_RAPIDJSON) && !defined(DART_USE_SAJSON)
+# if !defined(DART_HAS_RAPIDJSON)
 #   define DART_HAS_RAPIDJSON __has_include(<rapidjson/reader.h>) && __has_include(<rapidjson/writer.h>)
 # endif
 # ifndef DART_HAS_YAML
@@ -23,14 +23,14 @@
 #include <limits.h>
 #include <algorithm>
 
+#ifdef DART_USE_SAJSON
+#include <sajson.h>
+#endif
+
 #if DART_HAS_RAPIDJSON
 #include <rapidjson/reader.h>
 #include <rapidjson/writer.h>
 #include <rapidjson/document.h>
-#endif
-
-#ifdef DART_USE_SAJSON
-#include <sajson.h>
 #endif
 
 /*----- Local Includes -----*/
@@ -451,8 +451,11 @@ namespace dart {
         /*----- Lifecycle Functions -----*/
 
         object() = delete;
+#ifdef DART_USE_SAJSON
+        explicit object(sajson::value fields) noexcept;
+#endif
 #if DART_HAS_RAPIDJSON
-        object(rapidjson::Value const& fields) noexcept;
+        explicit object(rapidjson::Value const& fields) noexcept;
 #endif
         object(packet_fields<RefCount> const* fields) noexcept;
         object(object const&) = delete;
@@ -522,8 +525,11 @@ namespace dart {
         /*----- Lifecycle Functions -----*/
 
         array() = delete;
+#ifdef DART_USE_SAJSON
+        explicit array(sajson::value elems) noexcept;
+#endif
 #if DART_HAS_RAPIDJSON
-        array(rapidjson::Value const& elems) noexcept;
+        explicit array(rapidjson::Value const& elems) noexcept;
 #endif
         array(packet_elements<RefCount> const* elems) noexcept;
         array(array const&) = delete;
@@ -589,7 +595,8 @@ namespace dart {
         /*----- Lifecycle Functions -----*/
 
         basic_string() = delete;
-        basic_string(char const* str, size_t len) noexcept;
+        explicit basic_string(shim::string_view strv) noexcept;
+        explicit basic_string(char const* str, size_t len) noexcept;
         basic_string(basic_string const&) = delete;
         ~basic_string() = delete;
 
@@ -645,7 +652,7 @@ namespace dart {
         /*----- Lifecycle Functions -----*/
 
         primitive() = delete;
-        primitive(T data) noexcept : data(data) {}
+        explicit primitive(T data) noexcept : data(data) {}
         primitive(primitive const&) = delete;
         ~primitive() = delete;
 
