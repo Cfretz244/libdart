@@ -1,3 +1,7 @@
+/*----- System Includes -----*/
+
+#include <stdarg.h>
+
 /*----- Local Includes -----*/
 
 #include "../include/dart/abi.h"
@@ -65,6 +69,26 @@ using maybe_const_t = std::conditional_t<
   Target const,
   Target
 >;
+
+using string_view = dart::shim::string_view;
+
+struct abi_error : std::logic_error {
+  abi_error(char const* msg) : logic_error(msg) {}
+};
+
+enum class parse_type {
+  object,                   // o
+  array,                    // a
+  string,                   // s
+  integer,                  // i
+  unsigned_integer,         // ui
+  long_int,                 // l
+  unsigned_long_int,        // ul
+  decimal,                  // d
+  boolean,                  // b
+  null,                     // <whitespace>
+  invalid
+};
 
 /*----- Private Helper Function Implementations -----*/
 
@@ -341,6 +365,100 @@ namespace {
     return err_handler([&cb, pkt] { return packet_construct(std::forward<Func>(cb), pkt); });
   }
 
+  // Forgive me
+  parse_type identify_vararg(char const*& c) {
+    switch (*c++) {
+      case 'o':
+        return parse_type::object;
+      case 'a':
+        return parse_type::array;
+      case 's':
+        return parse_type::string;
+      case 'u':
+        switch (*c++) {
+          case 'i':
+            return parse_type::unsigned_integer;
+          case 'l':
+            return parse_type::unsigned_long_int;
+          default:
+            return parse_type::invalid;
+        }
+      case 'i':
+        return parse_type::integer;
+      case 'l':
+        return parse_type::long_int;
+      case 'd':
+        return parse_type::decimal;
+      case 'b':
+        return parse_type::boolean;
+      case ' ':
+        return parse_type::null;
+      default:
+        return parse_type::invalid;
+    }
+  }
+
+  template <class Packet>
+  void parse_vals(Packet& pkt, char const*& format, va_list args);
+
+  template <class Packet>
+  void parse_pairs(Packet& pkt, char const*& format, va_list args);
+
+  template <class Packet, class VaList>
+  Packet parse_val(char const*& format, VaList&& args) {
+    switch (identify_vararg(format)) {
+      case parse_type::object:
+        {
+          auto obj = Packet::make_object();
+          parse_pairs(obj, format, args);
+          return obj;
+        }
+      case parse_type::array:
+        {
+          auto arr = Packet::make_array();
+          parse_vals(arr, format, args);
+          return arr;
+        }
+      case parse_type::string:
+        return Packet::make_string(va_arg(args, char const*));
+      case parse_type::integer:
+        return Packet::make_integer(va_arg(args, int));
+      case parse_type::unsigned_integer:
+        return Packet::make_integer(va_arg(args, unsigned int));
+      case parse_type::long_int:
+        return Packet::make_integer(va_arg(args, long long));
+      case parse_type::unsigned_long_int:
+        return Packet::make_integer(va_arg(args, unsigned long long));
+      case parse_type::decimal:
+        return Packet::make_decimal(va_arg(args, double));
+      case parse_type::boolean:
+        return Packet::make_boolean(va_arg(args, int));
+      case parse_type::null:
+        return Packet::make_null();
+      case parse_type::invalid:
+        throw abi_error("invalid varargs character");
+    }
+  }
+
+  template <class Packet>
+  void parse_vals(Packet& pkt, char const*& format, va_list args) {
+    while (*format && *format != ',') {
+      pkt.push_back(parse_val<Packet>(format, args));
+    }
+  }
+
+  template <class Packet>
+  void parse_pairs(Packet& pkt, char const*& format, va_list args) {
+    while (*format && *format != ',') {
+      // va_list is assumed to consist of key value pairs.
+      // These two MUST exist as separate lines, as argument
+      // parameter evaluation order is implementation defined.
+      // Fun way to corrupt the stack.
+      auto key = Packet::make_string(va_arg(args, char const*));
+      pkt.add_field(std::move(key), parse_val<Packet>(format, args));
+    }
+  }
+
 }
 
 /*----- Function Implementations -----*/
@@ -433,6 +551,39 @@ extern "C" {
     );
   }
 
+  static dart_err dart_heap_init_obj_va_impl(dart_heap_t* pkt, dart_rc_type rc, char const* format, va_list args) {
+    return heap_typed_constructor_access(
+      compose(
+        [format, args] (dart::heap& pkt) mutable {
+          pkt = dart::heap::make_object();
+          parse_pairs(pkt, format, args);
+        },
+        [format, args] (dart::unsafe_heap& pkt) mutable {
+          pkt = dart::unsafe_heap::make_object();
+          parse_pairs(pkt, format, args);
+        }
+      ),
+      pkt,
+      rc
+    );
+  }
+
+  dart_err dart_heap_init_obj_va(dart_heap_t* pkt, char const* format, ...) {
+    va_list args;
+    va_start(args, format);
+    auto ret = dart_heap_init_obj_va_impl(pkt, DART_RC_SAFE, format, args);
+    va_end(args);
+    return ret;
+  }
+
+  dart_err dart_heap_init_obj_va_rc(dart_heap_t* pkt, dart_rc_type rc, char const* format, ...) {
+    va_list args;
+    va_start(args, format);
+    auto ret = dart_heap_init_obj_va_impl(pkt, rc, format, args);
+    va_end(args);
+    return ret;
+  }
+
   dart_err dart_heap_init_arr(dart_heap_t* pkt) {
     return dart_heap_init_arr_rc(pkt, DART_RC_SAFE);
   }
@@ -447,6 +598,39 @@ extern "C" {
       pkt,
       rc
     );
+  }
+
+  static dart_err dart_heap_init_arr_va_impl(dart_heap_t* pkt, dart_rc_type rc, char const* format, va_list args) {
+    return heap_typed_constructor_access(
+      compose(
+        [format, args] (dart::heap& pkt) mutable {
+          pkt = dart::heap::make_array();
+          parse_vals(pkt, format, args);
+        },
+        [format, args] (dart::unsafe_heap& pkt) mutable {
+          pkt = dart::unsafe_heap::make_array();
+          parse_vals(pkt, format, args);
+        }
+      ),
+      pkt,
+      rc
+    );
+  }
+
+  dart_err dart_heap_init_arr_va(dart_heap_t* pkt, char const* format, ...) {
+    va_list args;
+    va_start(args, format);
+    auto ret = dart_heap_init_arr_va_impl(pkt, DART_RC_SAFE, format, args);
+    va_end(args);
+    return ret;
+  }
+
+  dart_err dart_heap_init_arr_va_rc(dart_heap_t* pkt, dart_rc_type rc, char const* format, ...) {
+    va_list args;
+    va_start(args, format);
+    auto ret = dart_heap_init_arr_va_impl(pkt, rc, format, args);
+    va_end(args);
+    return ret;
   }
 
   dart_err dart_heap_init_str(dart_heap_t* pkt, char const* str, size_t len) {
@@ -527,6 +711,91 @@ extern "C" {
       ),
       pkt,
       rc
+    );
+  }
+
+  dart_err dart_heap_obj_add_heap(dart_heap_t* pkt, char const* key, size_t len, dart_heap_t const* val) {
+    auto insert = [=] (auto& pkt, auto& val) { pkt.add_field(string_view {key, len}, val); };
+    return heap_access(
+      compose(
+        [=] (dart::heap& pkt) {
+          return heap_access([=, &pkt] (dart::heap const& val) { insert(pkt, val); }, val);
+        },
+        [=] (dart::unsafe_heap& pkt) {
+          return heap_access([=, &pkt] (dart::unsafe_heap const& val) { insert(pkt, val); }, val);
+        }
+      ),
+      pkt
+    );
+  }
+
+  dart_err dart_heap_obj_take_heap(dart_heap_t* pkt, char const* key, size_t len, dart_heap_t* val) {
+    auto insert = [=] (auto& pkt, auto& val) { pkt.add_field(string_view {key, len}, std::move(val)); };
+    return heap_access(
+      compose(
+        [=] (dart::heap& pkt) {
+          return heap_access([=, &pkt] (dart::heap& val) { insert(pkt, val); }, val);
+        },
+        [=] (dart::unsafe_heap& pkt) {
+          return heap_access([=, &pkt] (dart::unsafe_heap& val) { insert(pkt, val); }, val);
+        }
+      ),
+      pkt
+    );
+  }
+
+  dart_err dart_heap_obj_add_str(dart_heap_t* pkt, char const* key, size_t len, char const* val, size_t val_len) {
+    auto insert = [=] (auto& pkt) { pkt.add_field(string_view {key, len}, string_view {val, val_len}); };
+    return heap_access(
+      compose(
+        [=] (dart::heap& pkt) { insert(pkt); },
+        [=] (dart::unsafe_heap& pkt) { insert(pkt); }
+      ),
+      pkt
+    );
+  }
+
+  dart_err dart_heap_obj_add_int(dart_heap_t* pkt, char const* key, size_t len, int64_t val) {
+    auto insert = [=] (auto& pkt) { pkt.add_field(string_view {key, len}, val); };
+    return heap_access(
+      compose(
+        [=] (dart::heap& pkt) { insert(pkt); },
+        [=] (dart::unsafe_heap& pkt) { insert(pkt); }
+      ),
+      pkt
+    );
+  }
+
+  dart_err dart_heap_obj_add_dcm(dart_heap_t* pkt, char const* key, size_t len, double val) {
+    auto insert = [=] (auto& pkt) { pkt.add_field(string_view {key, len}, val); };
+    return heap_access(
+      compose(
+        [=] (dart::heap& pkt) { insert(pkt); },
+        [=] (dart::unsafe_heap& pkt) { insert(pkt); }
+      ),
+      pkt
+    );
+  }
+
+  dart_err dart_heap_obj_add_bool(dart_heap_t* pkt, char const* key, size_t len, int val) {
+    auto insert = [=] (auto& pkt) { pkt.add_field(string_view {key, len}, static_cast<bool>(val)); };
+    return heap_access(
+      compose(
+        [=] (dart::heap& pkt) { insert(pkt); },
+        [=] (dart::unsafe_heap& pkt) { insert(pkt); }
+      ),
+      pkt
+    );
+  }
+
+  dart_err dart_heap_obj_add_null(dart_heap_t* pkt, char const* key, size_t len) {
+    auto insert = [=] (auto& pkt) { pkt.add_field(string_view {key, len}, nullptr); };
+    return heap_access(
+      compose(
+        [=] (dart::heap& pkt) { insert(pkt); },
+        [=] (dart::unsafe_heap& pkt) { insert(pkt); }
+      ),
+      pkt
     );
   }
 

@@ -90,10 +90,13 @@ extern "C" {
 
   // dart::heap typed constructors.
   dart_err dart_heap_init_obj(dart_heap_t* pkt);
-  dart_err dart_heap_init_obj_va(dart_heap_t* pkt, char const* format, ...);
   dart_err dart_heap_init_obj_rc(dart_heap_t* pkt, dart_rc_type rc);
+  dart_err dart_heap_init_obj_va(dart_heap_t* pkt, char const* format, ...);
+  dart_err dart_heap_init_obj_va_rc(dart_heap_t* pkt, dart_rc_type rc, char const* format, ...);
   dart_err dart_heap_init_arr(dart_heap_t* pkt);
   dart_err dart_heap_init_arr_rc(dart_heap_t* pkt, dart_rc_type rc);
+  dart_err dart_heap_init_arr_va(dart_heap_t* pkt, char const* format, ...);
+  dart_err dart_heap_init_arr_va_rc(dart_heap_t* pkt, dart_rc_type rc, char const* format, ...);
   dart_err dart_heap_init_str(dart_heap_t* pkt, char const* str, size_t len);
   dart_err dart_heap_init_str_rc(dart_heap_t* pkt, dart_rc_type rc, char const* str, size_t len);
   dart_err dart_heap_init_int(dart_heap_t* pkt, int64_t val);
@@ -104,6 +107,15 @@ extern "C" {
   dart_err dart_heap_init_bool_rc(dart_heap_t* pkt, dart_rc_type rc, int val);
   dart_err dart_heap_init_null(dart_heap_t* pkt);
   dart_err dart_heap_init_null_rc(dart_heap_t* pkt, dart_rc_type rc);
+
+  // dart::heap mutation operations.
+  dart_err dart_heap_obj_add_heap(dart_heap_t* pkt, char const* key, size_t len, dart_heap_t const* val);
+  dart_err dart_heap_obj_take_heap(dart_heap_t* pkt, char const* key, size_t len, dart_heap_t* val);
+  dart_err dart_heap_obj_add_str(dart_heap_t* pkt, char const* key, size_t len, char const* val, size_t val_len);
+  dart_err dart_heap_obj_add_int(dart_heap_t* pkt, char const* key, size_t len, int64_t val);
+  dart_err dart_heap_obj_add_dcm(dart_heap_t* pkt, char const* key, size_t len, double val);
+  dart_err dart_heap_obj_add_bool(dart_heap_t* pkt, char const* key, size_t len, int val);
+  dart_err dart_heap_obj_add_null(dart_heap_t* pkt, char const* key, size_t len);
 
   // dart::buffer lifecycle functions.
   dart_err dart_buffer_init(dart_buffer_t* pkt);
