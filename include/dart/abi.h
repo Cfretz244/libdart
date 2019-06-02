@@ -90,6 +90,7 @@ extern "C" {
 
   // dart::heap typed constructors.
   dart_err dart_heap_init_obj(dart_heap_t* pkt);
+  dart_err dart_heap_init_obj_va(dart_heap_t* pkt, char const* format, ...);
   dart_err dart_heap_init_obj_rc(dart_heap_t* pkt, dart_rc_type rc);
   dart_err dart_heap_init_arr(dart_heap_t* pkt);
   dart_err dart_heap_init_arr_rc(dart_heap_t* pkt, dart_rc_type rc);
