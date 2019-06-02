@@ -4,6 +4,7 @@
 /*----- System Includes -----*/
 
 #include <stdlib.h>
+#include <stdint.h>
 
 /*----- Macros ------*/
 

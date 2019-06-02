@@ -436,7 +436,7 @@ namespace {
         return Packet::make_boolean(va_arg(args, int));
       case parse_type::null:
         return Packet::make_null();
-      case parse_type::invalid:
+      default:
         throw abi_error("invalid varargs character");
     }
   }
