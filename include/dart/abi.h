@@ -25,7 +25,8 @@ extern "C" {
     DART_INTEGER,
     DART_DECIMAL,
     DART_BOOLEAN,
-    DART_NULL
+    DART_NULL,
+    DART_INVALID
   };
   typedef enum dart_type dart_type_t;
 
@@ -153,7 +154,7 @@ extern "C" {
   dart_heap_t dart_heap_null_init_rc(dart_rc_type_t rc);
   dart_err_t dart_heap_null_init_rc_err(dart_heap_t* pkt, dart_rc_type_t rc);
 
-  // dart::heap mutation operations.
+  // dart::heap object insert operations.
   dart_err_t dart_heap_obj_insert_heap(dart_heap_t* pkt, char const* key, dart_heap_t const* val);
   dart_err_t dart_heap_obj_insert_heap_len(dart_heap_t* pkt, char const* key, size_t len, dart_heap_t const* val);
   dart_err_t dart_heap_obj_take_heap(dart_heap_t* pkt, char const* key, dart_heap_t* val);
@@ -168,6 +169,60 @@ extern "C" {
   dart_err_t dart_heap_obj_insert_bool_len(dart_heap_t* pkt, char const* key, size_t len, int val);
   dart_err_t dart_heap_obj_insert_null(dart_heap_t* pkt, char const* key);
   dart_err_t dart_heap_obj_insert_null_len(dart_heap_t* pkt, char const* key, size_t len);
+
+  // dart::heap object erase operations.
+  dart_err_t dart_heap_obj_erase(dart_heap_t* pkt, char const* key);
+  dart_err_t dart_heap_obj_erase_len(dart_heap_t* pkt, char const* key, size_t len);
+
+  // dart::heap array insert operations.
+  dart_err_t dart_heap_arr_insert_heap(dart_heap_t* pkt, size_t idx, dart_heap_t const* val);
+  dart_err_t dart_heap_arr_take_heap(dart_heap_t* pkt, size_t idx, dart_heap_t* val);
+  dart_err_t dart_heap_arr_insert_str(dart_heap_t* pkt, size_t idx, char const* val);
+  dart_err_t dart_heap_arr_insert_str_len(dart_heap_t* pkt, size_t idx, char const* val, size_t val_len);
+  dart_err_t dart_heap_arr_insert_int(dart_heap_t* pkt, size_t idx, int64_t val);
+  dart_err_t dart_heap_arr_insert_dcm(dart_heap_t* pkt, size_t idx, double val);
+  dart_err_t dart_heap_arr_insert_bool(dart_heap_t* pkt, size_t idx, int val);
+  dart_err_t dart_heap_arr_insert_null(dart_heap_t* pkt, size_t idx);
+
+  // dart::heap array erase operations.
+  dart_err_t dart_heap_arr_erase(dart_heap_t* pkt, size_t idx);
+
+  // dart::heap object retrieval operations.
+  dart_heap_t dart_heap_obj_get(dart_heap_t const* src, char const* key);
+  dart_err_t dart_heap_obj_get_err(dart_heap_t* dst, dart_heap_t const* src, char const* key);
+  dart_heap_t dart_heap_obj_get_len(dart_heap_t const* src, char const* key, size_t len);
+  dart_err_t dart_heap_obj_get_len_err(dart_heap_t* dst, dart_heap_t const* src, char const* key, size_t len);
+
+  // dart::heap array retrieval operations.
+  dart_heap_t dart_heap_arr_get(dart_heap_t const* src, int64_t idx);
+  dart_err_t dart_heap_arr_get_err(dart_heap_t* dst, dart_heap_t const* src, int64_t idx);
+
+  // dart::heap string retrieval operations.
+  char const* dart_heap_str_get(dart_heap_t const* src);
+  char const* dart_heap_str_get_len(dart_heap_t const* src, size_t* len);
+
+  // dart::heap integer retrieval operations.
+  int64_t dart_heap_int_get(dart_heap_t const* src);
+  dart_err_t dart_heap_int_get_err(dart_heap_t const* src, int64_t* val);
+
+  // dart::heap decimal retrieval operations.
+  double dart_heap_dcm_get(dart_heap_t const* src);
+  dart_err_t dart_heap_dcm_get_err(dart_heap_t const* src, double* val);
+
+  // dart::heap boolean retrieval operations.
+  int dart_heap_bool_get(dart_heap_t const* src);
+  dart_err_t dart_heap_bool_get_err(dart_heap_t const* src, int* val);
+
+  // dart::heap introspection operations.
+  bool dart_heap_equal(dart_heap_t const* lhs, dart_heap_t const* rhs);
+  bool dart_heap_is_obj(dart_heap_t const* src);
+  bool dart_heap_is_arr(dart_heap_t const* src);
+  bool dart_heap_is_str(dart_heap_t const* src);
+  bool dart_heap_is_int(dart_heap_t const* src);
+  bool dart_heap_is_dcm(dart_heap_t const* src);
+  bool dart_heap_is_bool(dart_heap_t const* src);
+  bool dart_heap_is_null(dart_heap_t const* src);
+  dart_type_t dart_heap_get_type(dart_heap_t const* src);
 
   // dart::heap json operations.
   dart_heap_t dart_heap_from_json(char const* str);

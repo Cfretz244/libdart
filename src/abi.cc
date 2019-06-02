@@ -421,6 +421,27 @@ namespace {
     }
   }
 
+  dart_type_t abi_type(dart::detail::type type) {
+    switch (type) {
+      case dart::detail::type::object:
+        return DART_OBJECT;
+      case dart::detail::type::array:
+        return DART_ARRAY;
+      case dart::detail::type::string:
+        return DART_STRING;
+      case dart::detail::type::integer:
+        return DART_INTEGER;
+      case dart::detail::type::decimal:
+        return DART_DECIMAL;
+      case dart::detail::type::boolean:
+        return DART_BOOLEAN;
+      case dart::detail::type::null:
+        return DART_NULL;
+      default:
+        return DART_INVALID;
+    }
+  }
+
   template <class Packet, class VaList>
   void parse_vals(Packet& pkt, char const*& format, VaList&& args);
 
@@ -515,9 +536,6 @@ extern "C" {
   }
 
   dart_err_t dart_heap_init_rc_err(dart_heap_t* pkt, dart_rc_type_t rc) {
-    // Make sure the user isn't an idiot.
-    if (!pkt) return DART_CLIENT_ERROR;
-
     // Initialize.
     pkt->rtti = {DART_HEAP, rc};
     return heap_constructor_access(
@@ -537,9 +555,6 @@ extern "C" {
   }
 
   dart_err_t dart_heap_copy_err(dart_heap_t* dst, dart_heap_t const* src) {
-    // Make sure the user isn't an idiot.
-    if (!dst || !src) return DART_CLIENT_ERROR;
-
     // Initialize.
     dst->rtti = src->rtti;
     return heap_access(
@@ -563,9 +578,6 @@ extern "C" {
   }
 
   dart_err_t dart_heap_move_err(dart_heap_t* dst, dart_heap_t* src) {
-    // Make sure the user isn't an idiot.
-    if (!dst || !src) return DART_CLIENT_ERROR;
-
     // Initialize.
     dst->rtti = src->rtti;
     return heap_access(
@@ -975,8 +987,8 @@ extern "C" {
     auto insert = [=] (auto& pkt) { pkt.insert(string_view {key, len}, string_view {val, val_len}); };
     return heap_access(
       compose(
-        [=] (dart::heap& pkt) { insert(pkt); },
-        [=] (dart::unsafe_heap& pkt) { insert(pkt); }
+        [insert] (dart::heap& pkt) { insert(pkt); },
+        [insert] (dart::unsafe_heap& pkt) { insert(pkt); }
       ),
       pkt
     );
@@ -990,8 +1002,8 @@ extern "C" {
     auto insert = [=] (auto& pkt) { pkt.insert(string_view {key, len}, val); };
     return heap_access(
       compose(
-        [=] (dart::heap& pkt) { insert(pkt); },
-        [=] (dart::unsafe_heap& pkt) { insert(pkt); }
+        [insert] (dart::heap& pkt) { insert(pkt); },
+        [insert] (dart::unsafe_heap& pkt) { insert(pkt); }
       ),
       pkt
     );
@@ -1005,8 +1017,8 @@ extern "C" {
     auto insert = [=] (auto& pkt) { pkt.insert(string_view {key, len}, val); };
     return heap_access(
       compose(
-        [=] (dart::heap& pkt) { insert(pkt); },
-        [=] (dart::unsafe_heap& pkt) { insert(pkt); }
+        [insert] (dart::heap& pkt) { insert(pkt); },
+        [insert] (dart::unsafe_heap& pkt) { insert(pkt); }
       ),
       pkt
     );
@@ -1020,8 +1032,8 @@ extern "C" {
     auto insert = [=] (auto& pkt) { pkt.insert(string_view {key, len}, static_cast<bool>(val)); };
     return heap_access(
       compose(
-        [=] (dart::heap& pkt) { insert(pkt); },
-        [=] (dart::unsafe_heap& pkt) { insert(pkt); }
+        [insert] (dart::heap& pkt) { insert(pkt); },
+        [insert] (dart::unsafe_heap& pkt) { insert(pkt); }
       ),
       pkt
     );
@@ -1035,11 +1047,329 @@ extern "C" {
     auto insert = [=] (auto& pkt) { pkt.insert(string_view {key, len}, nullptr); };
     return heap_access(
       compose(
+        [insert] (dart::heap& pkt) { insert(pkt); },
+        [insert] (dart::unsafe_heap& pkt) { insert(pkt); }
+      ),
+      pkt
+    );
+  }
+
+  dart_err_t dart_heap_obj_erase(dart_heap_t* pkt, char const* key) {
+    return dart_heap_obj_erase_len(pkt, key, strlen(key));
+  }
+
+  dart_err_t dart_heap_obj_erase_len(dart_heap_t* pkt, char const* key, size_t len) {
+    auto erase = [=] (auto& pkt) { pkt.erase(string_view {key, len}); };
+    return heap_access(
+      compose(
+        [erase] (dart::heap& pkt) { erase(pkt); },
+        [erase] (dart::unsafe_heap& pkt) { erase(pkt); }
+      ),
+      pkt
+    );
+  }
+
+  dart_err_t dart_heap_arr_insert_heap(dart_heap_t* pkt, size_t idx, dart_heap_t const* val) {
+    auto insert = [=] (auto& pkt, auto& val) { pkt.insert(idx, val); };
+    return heap_access(
+      compose(
+        [=] (dart::heap& pkt) {
+          return heap_access([=, &pkt] (dart::heap const& val) { insert(pkt, val); }, val);
+        },
+        [=] (dart::unsafe_heap& pkt) {
+          return heap_access([=, &pkt] (dart::unsafe_heap const& val) { insert(pkt, val); }, val);
+        }
+      ),
+      pkt
+    );
+  }
+
+  dart_err_t dart_heap_arr_take_heap(dart_heap_t* pkt, size_t idx, dart_heap_t* val) {
+    auto insert = [=] (auto& pkt, auto& val) { pkt.insert(idx, std::move(val)); };
+    return heap_access(
+      compose(
+        [=] (dart::heap& pkt) {
+          return heap_access([=, &pkt] (dart::heap& val) { insert(pkt, val); }, val);
+        },
+        [=] (dart::unsafe_heap& pkt) {
+          return heap_access([=, &pkt] (dart::unsafe_heap& val) { insert(pkt, val); }, val);
+        }
+      ),
+      pkt
+    );
+  }
+
+  dart_err_t dart_heap_arr_insert_str(dart_heap_t* pkt, size_t idx, char const* val) {
+    return dart_heap_arr_insert_str_len(pkt, idx, val, strlen(val));
+  }
+
+  dart_err_t dart_heap_arr_insert_str_len(dart_heap_t* pkt, size_t idx, char const* val, size_t val_len) {
+    auto insert = [=] (auto& pkt) { pkt.insert(idx, string_view {val, val_len}); };
+    return heap_access(
+      compose(
+        [insert] (dart::heap& pkt) { insert(pkt); },
+        [insert] (dart::unsafe_heap& pkt) { insert(pkt); }
+      ),
+      pkt
+    );
+  }
+
+  dart_err_t dart_heap_arr_insert_int(dart_heap_t* pkt, size_t idx, int64_t val) {
+    auto insert = [=] (auto& pkt) { pkt.insert(idx, val); };
+    return heap_access(
+      compose(
+        [insert] (dart::heap& pkt) { insert(pkt); },
+        [insert] (dart::unsafe_heap& pkt) { insert(pkt); }
+      ),
+      pkt
+    );
+  }
+
+  dart_err_t dart_heap_arr_insert_dcm(dart_heap_t* pkt, size_t idx, double val) {
+    auto insert = [=] (auto& pkt) { pkt.insert(idx, val); };
+    return heap_access(
+      compose(
+        [insert] (dart::heap& pkt) { insert(pkt); },
+        [insert] (dart::unsafe_heap& pkt) { insert(pkt); }
+      ),
+      pkt
+    );
+  }
+
+  dart_err_t dart_heap_arr_insert_bool(dart_heap_t* pkt, size_t idx, int val) {
+    auto insert = [=] (auto& pkt) { pkt.insert(idx, static_cast<bool>(val)); };
+    return heap_access(
+      compose(
+        [insert] (dart::heap& pkt) { insert(pkt); },
+        [insert] (dart::unsafe_heap& pkt) { insert(pkt); }
+      ),
+      pkt
+    );
+  }
+
+  dart_err_t dart_heap_arr_insert_null(dart_heap_t* pkt, size_t idx) {
+    auto insert = [=] (auto& pkt) { pkt.insert(idx, nullptr); };
+    return heap_access(
+      compose(
         [=] (dart::heap& pkt) { insert(pkt); },
         [=] (dart::unsafe_heap& pkt) { insert(pkt); }
       ),
       pkt
     );
+  }
+
+  dart_err_t dart_heap_arr_erase(dart_heap_t* pkt, size_t idx) {
+    auto erase = [=] (auto& pkt) { pkt.erase(idx); };
+    return heap_access(
+      compose(
+        [erase] (dart::heap& pkt) { erase(pkt); },
+        [erase] (dart::unsafe_heap& pkt) { erase(pkt); }
+      ),
+      pkt
+    );
+  }
+
+  dart_heap_t dart_heap_obj_get(dart_heap_t const* src, char const* key) {
+    dart_heap_t dst;
+    auto err = dart_heap_obj_get_err(&dst, src, key);
+    if (err) return dart_heap_init();
+    else return dst;
+  }
+
+  dart_err_t dart_heap_obj_get_err(dart_heap_t* dst, dart_heap_t const* src, char const* key) {
+    return dart_heap_obj_get_len_err(dst, src, key, strlen(key));
+  }
+
+  dart_heap_t dart_heap_obj_get_len(dart_heap_t const* src, char const* key, size_t len) {
+    dart_heap_t dst;
+    auto err = dart_heap_obj_get_len_err(&dst, src, key, len);
+    if (err) return dart_heap_init();
+    else return dst;
+  }
+
+  dart_err_t dart_heap_obj_get_len_err(dart_heap_t* dst, dart_heap_t const* src, char const* key, size_t len) {
+    // Initialize.
+    dst->rtti = src->rtti;
+    return heap_access(
+      compose(
+        [=] (dart::heap const& src) {
+          return heap_construct([&] (dart::heap* dst) {
+            new(dst) dart::heap(src[{key, len}]);
+          }, dst);
+        },
+        [=] (dart::unsafe_heap const& src) {
+          return heap_construct([&] (dart::unsafe_heap* dst) {
+            new(dst) dart::unsafe_heap(src[{key, len}]);
+          }, dst);
+        }
+      ),
+      src
+    );
+  }
+
+  dart_heap_t dart_heap_arr_get(dart_heap_t const* src, int64_t idx) {
+    dart_heap_t dst;
+    auto err = dart_heap_arr_get_err(&dst, src, idx);
+    if (err) return dart_heap_init();
+    else return dst;
+  }
+
+  dart_err_t dart_heap_arr_get_err(dart_heap_t* dst, dart_heap_t const* src, int64_t idx) {
+    // Initialize.
+    dst->rtti = src->rtti;
+    return heap_access(
+      compose(
+        [=] (dart::heap const& src) {
+          return heap_construct([&] (dart::heap* dst) {
+            new(dst) dart::heap(src[idx]);
+          }, dst);
+        },
+        [=] (dart::unsafe_heap const& src) {
+          return heap_construct([&] (dart::unsafe_heap* dst) {
+            new(dst) dart::unsafe_heap(src[idx]);
+          }, dst);
+        }
+      ),
+      src
+    );
+  }
+
+  char const* dart_heap_str_get(dart_heap_t const* src) {
+    size_t dummy;
+    return dart_heap_str_get_len(src, &dummy);
+  }
+
+  char const* dart_heap_str_get_len(dart_heap_t const* src, size_t* len) {
+    char const* str;
+    auto get_str = [&] (auto& src) {
+      auto view = src.strv();
+      str = view.data();
+      *len = view.size();
+    };
+    auto err = heap_access(
+      compose(
+        [get_str] (dart::heap const& src) { get_str(src); },
+        [get_str] (dart::unsafe_heap const& src) { get_str(src); }
+      ),
+      src
+    );
+    if (err) return nullptr;
+    else return str;
+  }
+
+  int64_t dart_heap_int_get(dart_heap_t const* src) {
+    // No way unique way to signal failure here,
+    // the user needs to know this will succeed.
+    int64_t val = 0;
+    dart_heap_int_get_err(src, &val);
+    return val;
+  }
+
+  dart_err_t dart_heap_int_get_err(dart_heap_t const* src, int64_t* val) {
+    auto get_int = [=] (auto& src) { *val = src.integer(); };
+    return heap_access(
+      compose(
+        [get_int] (dart::heap const& src) { get_int(src); },
+        [get_int] (dart::unsafe_heap const& src) { get_int(src); }
+      ),
+      src
+    );
+  }
+
+  double dart_heap_dcm_get(dart_heap_t const* src) {
+    double val = std::numeric_limits<double>::quiet_NaN();
+    dart_heap_dcm_get_err(src, &val);
+    return val;
+  }
+
+  dart_err_t dart_heap_dcm_get_err(dart_heap_t const* src, double* val) {
+    auto get_dcm = [=] (auto& src) { *val = src.decimal(); };
+    return heap_access(
+      compose(
+        [get_dcm] (dart::heap const& src) { get_dcm(src); },
+        [get_dcm] (dart::unsafe_heap const& src) { get_dcm(src); }
+      ),
+      src
+    );
+  }
+
+  int dart_heap_bool_get(dart_heap_t const* src) {
+    // No way unique way to signal failure here,
+    // the user needs to know this will succeed.
+    int val = 1;
+    dart_heap_bool_get_err(src, &val);
+    return val;
+  }
+
+  dart_err_t dart_heap_bool_get_err(dart_heap_t const* src, int* val) {
+    auto get_bool = [=] (auto& src) { *val = src.boolean(); };
+    return heap_access(
+      compose(
+        [get_bool] (dart::heap const& src) { get_bool(src); },
+        [get_bool] (dart::unsafe_heap const& src) { get_bool(src); }
+      ),
+      src
+    );
+  }
+
+  bool dart_heap_equal(dart_heap_t const* lhs, dart_heap_t const* rhs) {
+    bool equal = false;
+    auto check = [&] (auto& lhs, auto& rhs) { equal = (lhs == rhs); };
+    auto err = heap_access(
+      compose(
+        [check, rhs] (dart::heap const& lhs) {
+          heap_access([check, lhs] (dart::heap const& rhs) { check(lhs, rhs); }, rhs);
+        },
+        [check, rhs] (dart::unsafe_heap const& lhs) {
+          heap_access([check, lhs] (dart::unsafe_heap const& rhs) { check(lhs, rhs); }, rhs);
+        }
+      ),
+      lhs
+    );
+    if (err) return false;
+    else return equal;
+  }
+
+  bool dart_heap_is_obj(dart_heap_t const* src) {
+    return dart_heap_get_type(src) == DART_OBJECT;
+  }
+
+  bool dart_heap_is_arr(dart_heap_t const* src) {
+    return dart_heap_get_type(src) == DART_ARRAY;
+  }
+
+  bool dart_heap_is_str(dart_heap_t const* src) {
+    return dart_heap_get_type(src) == DART_STRING;
+  }
+
+  bool dart_heap_is_int(dart_heap_t const* src) {
+    return dart_heap_get_type(src) == DART_INTEGER;
+  }
+
+  bool dart_heap_is_dcm(dart_heap_t const* src) {
+    return dart_heap_get_type(src) == DART_DECIMAL;
+  }
+
+  bool dart_heap_is_bool(dart_heap_t const* src) {
+    return dart_heap_get_type(src) == DART_BOOLEAN;
+  }
+
+  bool dart_heap_is_null(dart_heap_t const* src) {
+    return dart_heap_get_type(src) == DART_NULL;
+  }
+
+  dart_type_t dart_heap_get_type(dart_heap_t const* src) {
+    dart_type_t type;
+    auto get_type = [&] (auto& pkt) { type = abi_type(pkt.get_type()); };
+    auto err = heap_access(
+      compose(
+        [=] (dart::heap const& pkt) { get_type(pkt); },
+        [=] (dart::unsafe_heap const& pkt) { get_type(pkt); }
+      ),
+      src
+    );
+    if (err) return DART_INVALID;
+    else return type;
   }
 
   dart_heap_t dart_heap_from_json(char const* str) {
@@ -1124,9 +1454,6 @@ extern "C" {
   }
 
   dart_err_t dart_buffer_init_rc(dart_buffer_t* pkt, dart_rc_type_t rc) {
-    // Make sure the user isn't an idiot.
-    if (!pkt) return DART_CLIENT_ERROR;
-
     // Initialize.
     pkt->rtti = {DART_BUFFER, rc};
     return buffer_constructor_access(
@@ -1139,9 +1466,6 @@ extern "C" {
   }
 
   dart_err_t dart_buffer_copy(dart_buffer_t* dst, dart_buffer_t const* src) {
-    // Make sure the user isn't an idiot.
-    if (!dst || !src) return DART_CLIENT_ERROR;
-
     // Initialize.
     dst->rtti = src->rtti;
     return buffer_access(
@@ -1158,9 +1482,6 @@ extern "C" {
   }
 
   dart_err_t dart_buffer_move(dart_buffer_t* dst, dart_buffer_t* src) {
-    // Make sure the user isn't an idiot.
-    if (!dst || !src) return DART_CLIENT_ERROR;
-
     // Initialize.
     dst->rtti = src->rtti;
     return buffer_access(
@@ -1191,9 +1512,6 @@ extern "C" {
   }
 
   dart_err_t dart_packet_init_rc(dart_packet_t* pkt, dart_rc_type_t rc) {
-    // Make sure the user isn't an idiot.
-    if (!pkt) return DART_CLIENT_ERROR;
-
     // Initialize.
     pkt->rtti = {DART_PACKET, rc};
     return packet_constructor_access(
@@ -1206,9 +1524,6 @@ extern "C" {
   }
 
   dart_err_t dart_packet_copy(dart_packet_t* dst, dart_packet_t const* src) {
-    // Make sure the user isn't an idiot.
-    if (!dst || !src) return DART_CLIENT_ERROR;
-
     // Initialize.
     dst->rtti = src->rtti;
     return packet_access(
@@ -1225,9 +1540,6 @@ extern "C" {
   }
 
   dart_err_t dart_packet_move(dart_packet_t* dst, dart_packet_t* src) {
-    // Make sure the user isn't an idiot.
-    if (!dst || !src) return DART_CLIENT_ERROR;
-
     // Initialize.
     dst->rtti = src->rtti;
     return packet_access(
