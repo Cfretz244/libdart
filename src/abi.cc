@@ -118,6 +118,8 @@ namespace {
             std::forward<decltype(c)>(c), std::forward<decltype(as)>(as)...);
       },
       [] (std::false_type, auto&&, auto&&) {
+        errmsg = "Avoided a type-mismatched call of some sort. "
+              "Are your rc types correct? Did you perform a bad cast?";
         return DART_CLIENT_ERROR;
       }
     )(is_callable<Func, Args...> {}, std::forward<Func>(cb), std::forward<Args>(the_args)...);
@@ -139,6 +141,7 @@ namespace {
               const_cast<maybe_const_t<dart::unsafe_heap, is_const>&>(*rt_ptr));
         }
       default:
+        errmsg = "Unknown reference counter passed for dart_heap";
         return DART_CLIENT_ERROR;
     }
   }
@@ -159,6 +162,7 @@ namespace {
               const_cast<maybe_const_t<dart::unsafe_buffer, is_const>&>(*rt_ptr));
         }
       default:
+        errmsg = "Unknown reference counter passed for dart_buffer";
         return DART_CLIENT_ERROR;
     }
   }
@@ -179,6 +183,7 @@ namespace {
               const_cast<maybe_const_t<dart::unsafe_packet, is_const>&>(*rt_ptr));
         }
       default:
+        errmsg = "Unknown reference counter passed for dart_packet";
         return DART_CLIENT_ERROR;
     }
   }
@@ -194,6 +199,7 @@ namespace {
       case DART_PACKET:
         return packet_unwrap_impl<is_const>(std::forward<Func>(cb), reinterpret_cast<dart_packet_t*>(pkt));
       default:
+        errmsg = "Corrupted dart object encountered in generic function call.";
         return DART_CLIENT_ERROR;
     }
   }
@@ -234,6 +240,7 @@ namespace {
           return ret ? ret : DART_NO_ERROR;
         }
       default:
+        errmsg = "Unknown reference counter passed for dart_heap";
         return DART_CLIENT_ERROR;
     }
   }
@@ -264,6 +271,7 @@ namespace {
           return ret ? ret : DART_NO_ERROR;
         }
       default:
+        errmsg = "Unknown reference counter passed for dart_buffer";
         return DART_CLIENT_ERROR;
     }
   }
@@ -294,6 +302,7 @@ namespace {
           return ret ? ret : DART_NO_ERROR;
         }
       default:
+        errmsg = "Unknown reference counter passed for dart_packet";
         return DART_CLIENT_ERROR;
     }
   }
@@ -344,6 +353,16 @@ namespace {
 
     // Assign to it.
     return err_handler([&cb, pkt] { return heap_unwrap(std::forward<Func>(cb), pkt); });
+  }
+
+  template <class Func>
+  dart_err_t packet_typed_constructor_access(Func&& cb, dart_packet_t* pkt, dart_rc_type_t rc) noexcept {
+    // Default construct our packet.
+    auto ret = dart_packet_init_rc(pkt, rc);
+    if (ret) return ret;
+
+    // Assign to it.
+    return err_handler([&cb, pkt] { return packet_unwrap(std::forward<Func>(cb), pkt); });
   }
 
   template <class Func, class Ptr>
@@ -800,6 +819,33 @@ extern "C" {
     );
   }
 
+  dart_err_t dart_heap_from_json(dart_heap_t* pkt, char const* str) {
+    return dart_heap_from_json_len_rc(pkt, DART_RC_SAFE, str, strlen(str));
+  }
+
+  dart_err_t dart_heap_from_json_rc(dart_heap_t* pkt, dart_rc_type_t rc, char const* str) {
+    return dart_heap_from_json_len_rc(pkt, rc, str, strlen(str));
+  }
+
+  dart_err_t dart_heap_from_json_len(dart_heap_t* pkt, char const* str, size_t len) {
+    return dart_heap_from_json_len_rc(pkt, DART_RC_SAFE, str, len);
+  }
+
+  dart_err_t dart_heap_from_json_len_rc(dart_heap_t* pkt, dart_rc_type_t rc, char const* str, size_t len) {
+    return heap_typed_constructor_access(
+      compose(
+        [=] (dart::heap& pkt) {
+          pkt = dart::heap::from_json({str, len});
+        },
+        [=] (dart::unsafe_heap& pkt) {
+          pkt = dart::unsafe_heap::from_json({str, len});
+        }
+      ),
+      pkt,
+      rc
+    );
+  }
+
   char* dart_heap_to_json(dart_heap_t const* pkt, size_t* len) {
     // How long has it been since I've called a raw malloc like this...
     char* outstr;
@@ -831,7 +877,7 @@ extern "C" {
     if (!pkt) return DART_CLIENT_ERROR;
 
     // Initialize.
-    pkt->rtti = {DART_HEAP, rc};
+    pkt->rtti = {DART_BUFFER, rc};
     return buffer_constructor_access(
       compose(
         [] (dart::buffer* ptr) { new(ptr) dart::buffer(); },
@@ -898,7 +944,7 @@ extern "C" {
     if (!pkt) return DART_CLIENT_ERROR;
 
     // Initialize.
-    pkt->rtti = {DART_HEAP, rc};
+    pkt->rtti = {DART_PACKET, rc};
     return packet_constructor_access(
       compose(
         [] (dart::packet* ptr) { new(ptr) dart::packet(); },
@@ -954,6 +1000,336 @@ extern "C" {
       ),
       pkt
     );
+  }
+
+  dart_err_t dart_packet_init_obj(dart_packet_t* pkt) {
+    return dart_packet_init_obj_rc(pkt, DART_RC_SAFE);
+  }
+
+  dart_err_t dart_packet_init_obj_rc(dart_packet_t* pkt, dart_rc_type_t rc) {
+    // Default initialize, then assign.
+    return packet_typed_constructor_access(
+      compose(
+        [] (dart::packet& pkt) { pkt = dart::packet::make_object(); },
+        [] (dart::unsafe_packet& pkt) { pkt = dart::unsafe_packet::make_object(); }
+      ),
+      pkt,
+      rc
+    );
+  }
+
+  static dart_err_t dart_packet_init_obj_va_impl(dart_packet_t* pkt, dart_rc_type_t rc, char const* format, va_list args) {
+    return packet_typed_constructor_access(
+      compose(
+        [format, args] (dart::packet& pkt) mutable {
+          pkt = dart::packet::make_object();
+          parse_pairs(pkt, format, args);
+        },
+        [format, args] (dart::unsafe_packet& pkt) mutable {
+          pkt = dart::unsafe_packet::make_object();
+          parse_pairs(pkt, format, args);
+        }
+      ),
+      pkt,
+      rc
+    );
+  }
+
+  dart_err_t dart_packet_init_obj_va(dart_packet_t* pkt, char const* format, ...) {
+    va_list args;
+    va_start(args, format);
+    auto ret = dart_packet_init_obj_va_impl(pkt, DART_RC_SAFE, format, args);
+    va_end(args);
+    return ret;
+  }
+
+  dart_err_t dart_packet_init_obj_va_rc(dart_packet_t* pkt, dart_rc_type_t rc, char const* format, ...) {
+    va_list args;
+    va_start(args, format);
+    auto ret = dart_packet_init_obj_va_impl(pkt, rc, format, args);
+    va_end(args);
+    return ret;
+  }
+
+  dart_err_t dart_packet_init_arr(dart_packet_t* pkt) {
+    return dart_packet_init_arr_rc(pkt, DART_RC_SAFE);
+  }
+
+  dart_err_t dart_packet_init_arr_rc(dart_packet_t* pkt, dart_rc_type_t rc) {
+    // Default initialize, then assign.
+    return packet_typed_constructor_access(
+      compose(
+        [] (dart::packet& pkt) { pkt = dart::packet::make_array(); },
+        [] (dart::unsafe_packet& pkt) { pkt = dart::unsafe_packet::make_array(); }
+      ),
+      pkt,
+      rc
+    );
+  }
+
+  static dart_err_t dart_packet_init_arr_va_impl(dart_packet_t* pkt, dart_rc_type_t rc, char const* format, va_list args) {
+    return packet_typed_constructor_access(
+      compose(
+        [format, args] (dart::packet& pkt) mutable {
+          pkt = dart::packet::make_array();
+          parse_vals(pkt, format, args);
+        },
+        [format, args] (dart::unsafe_packet& pkt) mutable {
+          pkt = dart::unsafe_packet::make_array();
+          parse_vals(pkt, format, args);
+        }
+      ),
+      pkt,
+      rc
+    );
+  }
+
+  dart_err_t dart_packet_init_arr_va(dart_packet_t* pkt, char const* format, ...) {
+    va_list args;
+    va_start(args, format);
+    auto ret = dart_packet_init_arr_va_impl(pkt, DART_RC_SAFE, format, args);
+    va_end(args);
+    return ret;
+  }
+
+  dart_err_t dart_packet_init_arr_va_rc(dart_packet_t* pkt, dart_rc_type_t rc, char const* format, ...) {
+    va_list args;
+    va_start(args, format);
+    auto ret = dart_packet_init_arr_va_impl(pkt, rc, format, args);
+    va_end(args);
+    return ret;
+  }
+
+  dart_err_t dart_packet_init_str(dart_packet_t* pkt, char const* str, size_t len) {
+    return dart_packet_init_str_rc(pkt, DART_RC_SAFE, str, len);
+  }
+
+  dart_err_t dart_packet_init_str_rc(dart_packet_t* pkt, dart_rc_type_t rc, char const* str, size_t len) {
+    // Default initialize, then assign
+    return packet_typed_constructor_access(
+      compose(
+        [str, len] (dart::packet& pkt) { pkt = dart::packet::make_string({str, len}); },
+        [str, len] (dart::unsafe_packet& pkt) { pkt = dart::unsafe_packet::make_string({str, len}); }
+      ),
+      pkt,
+      rc
+    );
+  }
+
+  dart_err_t dart_packet_init_int(dart_packet_t* pkt, int64_t val) {
+    return dart_packet_init_int_rc(pkt, DART_RC_SAFE, val);
+  }
+
+  dart_err_t dart_packet_init_int_rc(dart_packet_t* pkt, dart_rc_type_t rc, int64_t val) {
+    // Default initialize, then assign
+    return packet_typed_constructor_access(
+      compose(
+        [val] (dart::packet& pkt) { pkt = dart::packet::make_integer(val); },
+        [val] (dart::unsafe_packet& pkt) { pkt = dart::unsafe_packet::make_integer(val); }
+      ),
+      pkt,
+      rc
+    );
+  }
+
+  dart_err_t dart_packet_init_dcm(dart_packet_t* pkt, double val) {
+    return dart_packet_init_dcm_rc(pkt, DART_RC_SAFE, val);
+  }
+
+  dart_err_t dart_packet_init_dcm_rc(dart_packet_t* pkt, dart_rc_type_t rc, double val) {
+    // Default initialize, then assign
+    return packet_typed_constructor_access(
+      compose(
+        [val] (dart::packet& pkt) { pkt = dart::packet::make_decimal(val); },
+        [val] (dart::unsafe_packet& pkt) { pkt = dart::unsafe_packet::make_decimal(val); }
+      ),
+      pkt,
+      rc
+    );
+  }
+
+  dart_err_t dart_packet_init_bool(dart_packet_t* pkt, int val) {
+    return dart_packet_init_bool_rc(pkt, DART_RC_SAFE, val);
+  }
+
+  dart_err_t dart_packet_init_bool_rc(dart_packet_t* pkt, dart_rc_type_t rc, int val) {
+    // Default initialize, then assign
+    return packet_typed_constructor_access(
+      compose(
+        [val] (dart::packet& pkt) { pkt = dart::packet::make_boolean(val); },
+        [val] (dart::unsafe_packet& pkt) { pkt = dart::unsafe_packet::make_boolean(val); }
+      ),
+      pkt,
+      rc
+    );
+  }
+
+  dart_err_t dart_packet_init_null(dart_packet_t* pkt) {
+    return dart_packet_init_null_rc(pkt, DART_RC_SAFE);
+  }
+
+  dart_err_t dart_packet_init_null_rc(dart_packet_t* pkt, dart_rc_type_t rc) {
+    // Default initialize, then assign.
+    // Unnecessary, but done for consistency of code formatting.
+    return packet_typed_constructor_access(
+      compose(
+        [] (dart::packet& pkt) { pkt = dart::packet::make_null(); },
+        [] (dart::unsafe_packet& pkt) { pkt = dart::unsafe_packet::make_null(); }
+      ),
+      pkt,
+      rc
+    );
+  }
+
+  dart_err_t dart_packet_obj_add_packet(dart_packet_t* pkt, char const* key, size_t len, dart_packet_t const* val) {
+    auto insert = [=] (auto& pkt, auto& val) { pkt.add_field(string_view {key, len}, val); };
+    return packet_access(
+      compose(
+        [=] (dart::packet& pkt) {
+          return packet_access([=, &pkt] (dart::packet const& val) { insert(pkt, val); }, val);
+        },
+        [=] (dart::unsafe_packet& pkt) {
+          return packet_access([=, &pkt] (dart::unsafe_packet const& val) { insert(pkt, val); }, val);
+        }
+      ),
+      pkt
+    );
+  }
+
+  dart_err_t dart_packet_obj_take_packet(dart_packet_t* pkt, char const* key, size_t len, dart_packet_t* val) {
+    auto insert = [=] (auto& pkt, auto& val) { pkt.add_field(string_view {key, len}, std::move(val)); };
+    return packet_access(
+      compose(
+        [=] (dart::packet& pkt) {
+          return packet_access([=, &pkt] (dart::packet& val) { insert(pkt, val); }, val);
+        },
+        [=] (dart::unsafe_packet& pkt) {
+          return packet_access([=, &pkt] (dart::unsafe_packet& val) { insert(pkt, val); }, val);
+        }
+      ),
+      pkt
+    );
+  }
+
+  dart_err_t dart_packet_obj_add_str(dart_packet_t* pkt, char const* key, size_t len, char const* val, size_t val_len) {
+    auto insert = [=] (auto& pkt) { pkt.add_field(string_view {key, len}, string_view {val, val_len}); };
+    return packet_access(
+      compose(
+        [=] (dart::packet& pkt) { insert(pkt); },
+        [=] (dart::unsafe_packet& pkt) { insert(pkt); }
+      ),
+      pkt
+    );
+  }
+
+  dart_err_t dart_packet_obj_add_int(dart_packet_t* pkt, char const* key, size_t len, int64_t val) {
+    auto insert = [=] (auto& pkt) { pkt.add_field(string_view {key, len}, val); };
+    return packet_access(
+      compose(
+        [=] (dart::packet& pkt) { insert(pkt); },
+        [=] (dart::unsafe_packet& pkt) { insert(pkt); }
+      ),
+      pkt
+    );
+  }
+
+  dart_err_t dart_packet_obj_add_dcm(dart_packet_t* pkt, char const* key, size_t len, double val) {
+    auto insert = [=] (auto& pkt) { pkt.add_field(string_view {key, len}, val); };
+    return packet_access(
+      compose(
+        [=] (dart::packet& pkt) { insert(pkt); },
+        [=] (dart::unsafe_packet& pkt) { insert(pkt); }
+      ),
+      pkt
+    );
+  }
+
+  dart_err_t dart_packet_obj_add_bool(dart_packet_t* pkt, char const* key, size_t len, int val) {
+    auto insert = [=] (auto& pkt) { pkt.add_field(string_view {key, len}, static_cast<bool>(val)); };
+    return packet_access(
+      compose(
+        [=] (dart::packet& pkt) { insert(pkt); },
+        [=] (dart::unsafe_packet& pkt) { insert(pkt); }
+      ),
+      pkt
+    );
+  }
+
+  dart_err_t dart_packet_obj_add_null(dart_packet_t* pkt, char const* key, size_t len) {
+    auto insert = [=] (auto& pkt) { pkt.add_field(string_view {key, len}, nullptr); };
+    return packet_access(
+      compose(
+        [=] (dart::packet& pkt) { insert(pkt); },
+        [=] (dart::unsafe_packet& pkt) { insert(pkt); }
+      ),
+      pkt
+    );
+  }
+
+  dart_err_t dart_packet_from_json(dart_packet_t* pkt, char const* str) {
+    return dart_packet_from_json_len_rc(pkt, DART_RC_SAFE, str, strlen(str));
+  }
+
+  dart_err_t dart_packet_from_json_rc(dart_packet_t* pkt, dart_rc_type_t rc, char const* str) {
+    return dart_packet_from_json_len_rc(pkt, rc, str, strlen(str));
+  }
+
+  dart_err_t dart_packet_from_json_len(dart_packet_t* pkt, char const* str, size_t len) {
+    return dart_packet_from_json_len_rc(pkt, DART_RC_SAFE, str, len);
+  }
+
+  dart_err_t dart_packet_from_json_len_rc(dart_packet_t* pkt, dart_rc_type_t rc, char const* str, size_t len) {
+    return packet_typed_constructor_access(
+      compose(
+        [=] (dart::packet& pkt) {
+          pkt = dart::packet::from_json({str, len});
+        },
+        [=] (dart::unsafe_packet& pkt) {
+          pkt = dart::unsafe_packet::from_json({str, len});
+        }
+      ),
+      pkt,
+      rc
+    );
+  }
+
+  char* dart_packet_to_json(dart_packet_t const* pkt, size_t* len) {
+    // How long has it been since I've called a raw malloc like this...
+    char* outstr;
+    auto print = [&] (auto& pkt) {
+      // Call these first so they throw before allocation.
+      auto instr = pkt.to_json();
+      auto inlen = instr.size() + 1;
+      if (len) *len = inlen;
+      outstr = reinterpret_cast<char*>(malloc(inlen));
+      memcpy(outstr, instr.data(), inlen);
+    };
+    auto ret = packet_access(
+      compose(
+        [=] (dart::packet const& pkt) { print(pkt); },
+        [=] (dart::unsafe_packet const& pkt) { print(pkt); }
+      ),
+      pkt
+    );
+    if (ret) return nullptr;
+    return outstr;
+  }
+
+  char* dart_to_json(void* pkt, size_t* len) {
+    char* outstr;
+    auto ret = generic_access(
+      [&] (auto& pkt) {
+        // Call these first so they throw before allocation.
+        auto instr = pkt.to_json();
+        auto inlen = instr.size() + 1;
+        if (len) *len = inlen;
+        outstr = reinterpret_cast<char*>(malloc(inlen));
+        memcpy(outstr, instr.data(), inlen);
+      },
+      pkt
+    );
+    if (ret) return nullptr;
+    return outstr;
   }
 
   dart_err_t dart_destroy(void* pkt) {
