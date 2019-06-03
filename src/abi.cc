@@ -131,8 +131,8 @@ namespace {
   void safe_insert(Packet& pkt, Key&& key, Value&& val) {
     safe_insert_impl(pkt, std::forward<Key>(key), std::forward<Value>(val),
       dart::meta::conjunction<
-        dart::convert::is_castable<Key, Packet>,
-        dart::convert::is_castable<Value, Packet>
+        dart::convert::is_castable<Key, std::decay_t<Packet>>,
+        dart::convert::is_castable<Value, std::decay_t<Packet>>
       > {}
     );
   }
@@ -2399,9 +2399,13 @@ extern "C" {
 
   dart_err_t dart_obj_insert_dart_len(void* dst, char const* key, size_t len, void const* val) {
     return generic_access(
-      [=] (auto& dst) {
-        return generic_access([=] (auto& val) { safe_insert(dst, string_view {key, len}, val); }, val);
-      },
+      mutable_visitor(
+        [key, len, val] (auto& dst) {
+          return generic_access([&dst, key, len] (auto& val) {
+            safe_insert(dst, string_view {key, len}, val);
+          }, val);
+        }
+      ),
       dst
     );
   }
@@ -2412,9 +2416,13 @@ extern "C" {
 
   dart_err_t dart_obj_take_dart_len(void* dst, char const* key, size_t len, void* val) {
     return generic_access(
-      [=] (auto& dst) {
-        return generic_access([=] (auto& val) { safe_insert(dst, string_view {key, len}, std::move(val)); }, val);
-      },
+      mutable_visitor(
+        [key, len, val] (auto& dst) {
+          return generic_access([&dst, key, len] (auto& val) {
+            safe_insert(dst, string_view {key, len}, std::move(val));
+          }, val);
+        }
+      ),
       dst
     );
   }
@@ -2487,18 +2495,22 @@ extern "C" {
 
   dart_err_t dart_arr_insert_dart(void* dst, size_t idx, void const* val) {
     return generic_access(
-      [=] (auto& dst) {
-        return generic_access([=] (auto& val) { safe_insert(dst, idx, val); }, val);
-      },
+      mutable_visitor(
+        [idx, val] (auto& dst) {
+          return generic_access([&dst, idx] (auto& val) { safe_insert(dst, idx, val); }, val);
+        }
+      ),
       dst
     );
   }
 
   dart_err_t dart_arr_take_dart(void* dst, size_t idx, void* val) {
     return generic_access(
-      [=] (auto& dst) {
-        return generic_access([=] (auto& val) { safe_insert(dst, idx, std::move(val)); }, val);
-      },
+      mutable_visitor(
+        [idx, val] (auto& dst) {
+          return generic_access([&dst, idx] (auto& val) { safe_insert(dst, idx, std::move(val)); }, val);
+        }
+      ),
       dst
     );
   }

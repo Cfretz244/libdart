@@ -5,6 +5,7 @@ add_library(catch OBJECT catch_driver.cc)
 if (build_abi)
   add_executable(abi_tests abi_unit_tests.cc $<TARGET_OBJECTS:catch>)
   target_link_libraries(abi_tests dart_abi)
+  target_compile_options(abi_tests PUBLIC "-g")
 endif ()
 add_executable(unit_tests type_unit_tests.cc obj_unit_tests.cc arr_unit_tests.cc str_unit_tests.cc int_unit_tests.cc dcm_unit_tests.cc bool_unit_tests.cc null_unit_tests.cc iteration_unit_tests.cc ptr_unit_tests.cc misc_unit_tests.cc optional_unit_tests.cc string_view_unit_tests.cc $<TARGET_OBJECTS:catch>)
 
