@@ -865,7 +865,7 @@ extern "C" {
     else return dst;
   }
 
-  dart_err_t dart_heap_str_init_err_len(dart_heap_t* dst, char const* str, size_t len) {
+  dart_err_t dart_heap_str_init_len_err(dart_heap_t* dst, char const* str, size_t len) {
     return dart_heap_str_init_rc_len_err(dst, DART_RC_SAFE, str, len);
   }
 
@@ -1007,7 +1007,7 @@ extern "C" {
     else return dst;
   }
 
-  dart_err_t dart_heap_init_null_rc_err(dart_heap_t* dst, dart_rc_type_t rc) {
+  dart_err_t dart_heap_null_init_rc_err(dart_heap_t* dst, dart_rc_type_t rc) {
     // Default initialize, then assign.
     // Unnecessary, but done for consistency of code formatting.
     return heap_typed_constructor_access(
@@ -1273,12 +1273,12 @@ extern "C" {
       compose(
         [=] (dart::heap const& src) {
           return heap_construct([&] (dart::heap* dst) {
-            new(dst) dart::heap(src[{key, len}]);
+            new(dst) dart::heap(src[string_view {key, len}]);
           }, dst);
         },
         [=] (dart::unsafe_heap const& src) {
           return heap_construct([&] (dart::unsafe_heap* dst) {
-            new(dst) dart::unsafe_heap(src[{key, len}]);
+            new(dst) dart::unsafe_heap(src[string_view {key, len}]);
           }, dst);
         }
       ),
@@ -1389,6 +1389,13 @@ extern "C" {
       ),
       src
     );
+  }
+
+  size_t dart_heap_size(dart_heap_t const* src) {
+    size_t val = 0;
+    auto err = heap_access([&val] (auto& src) { val = src.size(); }, src);
+    if (err) return DART_FAILURE;
+    else return val;
   }
 
   bool dart_heap_equal(dart_heap_t const* lhs, dart_heap_t const* rhs) {
@@ -1790,6 +1797,13 @@ extern "C" {
       ),
       src
     );
+  }
+
+  size_t dart_buffer_size(dart_buffer_t const* src) {
+    size_t val = 0;
+    auto err = buffer_access([&val] (auto& src) { val = src.size(); }, src);
+    if (err) return DART_FAILURE;
+    else return val;
   }
 
   bool dart_buffer_equal(dart_buffer_t const* lhs, dart_buffer_t const* rhs) {
@@ -2224,7 +2238,7 @@ extern "C" {
     else return dst;
   }
 
-  dart_err_t dart_str_init_err_len(dart_packet_t* dst, char const* str, size_t len) {
+  dart_err_t dart_str_init_len_err(dart_packet_t* dst, char const* str, size_t len) {
     return dart_str_init_rc_len_err(dst, DART_RC_SAFE, str, len);
   }
 
@@ -2366,7 +2380,7 @@ extern "C" {
     else return dst;
   }
 
-  dart_err_t dart_init_null_rc_err(dart_packet_t* dst, dart_rc_type_t rc) {
+  dart_err_t dart_null_init_rc_err(dart_packet_t* dst, dart_rc_type_t rc) {
     // Default initialize, then assign.
     // Unnecessary, but done for consistency of code formatting.
     return packet_typed_constructor_access(
@@ -2635,7 +2649,14 @@ extern "C" {
   }
 
   dart_err_t dart_bool_get_err(void const* src, int* val) {
-    return generic_access([=] (auto& str) { *val = str.boolean(); }, src);
+    return generic_access([=] (auto& src) { *val = src.boolean(); }, src);
+  }
+
+  size_t dart_size(void const* src) {
+    size_t val = 0;
+    auto err = generic_access([&val] (auto& src) { val = src.size(); }, src);
+    if (err) return DART_FAILURE;
+    else return val;
   }
 
   bool dart_equal(void const* lhs, void const* rhs) {

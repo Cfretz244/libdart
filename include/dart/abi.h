@@ -12,6 +12,8 @@
 #define DART_HEAP_MAX_SIZE    (1U << 6U)
 #define DART_PACKET_MAX_SIZE  DART_HEAP_MAX_SIZE
 
+#define DART_FAILURE          (-1)
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -214,6 +216,7 @@ extern "C" {
   dart_err_t dart_heap_bool_get_err(dart_heap_t const* src, int* val);
 
   // dart::heap introspection operations.
+  size_t dart_heap_size(dart_heap_t const* src);
   bool dart_heap_equal(dart_heap_t const* lhs, dart_heap_t const* rhs);
   bool dart_heap_is_obj(dart_heap_t const* src);
   bool dart_heap_is_arr(dart_heap_t const* src);
@@ -279,6 +282,7 @@ extern "C" {
   dart_err_t dart_buffer_bool_get_err(dart_buffer_t const* src, int* val);
 
   // dart::buffer introspection operations.
+  size_t dart_buffer_size(dart_buffer_t const* src);
   bool dart_buffer_equal(dart_buffer_t const* lhs, dart_buffer_t const* rhs);
   bool dart_buffer_is_obj(dart_buffer_t const* src);
   bool dart_buffer_is_arr(dart_buffer_t const* src);
@@ -431,6 +435,7 @@ extern "C" {
   dart_err_t dart_bool_get_err(void const* src, int* val);
 
   // generic introspection operations.
+  size_t dart_size(void const* src);
   bool dart_equal(void const* lhs, void const* rhs);
   bool dart_is_obj(void const* src);
   bool dart_is_arr(void const* src);
