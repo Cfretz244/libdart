@@ -84,6 +84,7 @@ include_directories(include)
 # Build the ABI if we were asked to.
 if (build_abi)
   add_library(dart_abi STATIC src/abi.cc)
+  target_compile_options(dart_abi PUBLIC "-O3")
 endif ()
 
 # Conditionally setup our tests.
