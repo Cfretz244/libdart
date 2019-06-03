@@ -2947,9 +2947,10 @@ extern "C" {
     else return ended;
   }
 
-  bool dart_iterator_done_destroy(dart_iterator_t* dst) {
+  bool dart_iterator_done_destroy(dart_iterator_t* dst, dart_packet_t* pkt) {
     if (!dart_iterator_done(dst)) return false;
     dart_iterator_destroy(dst);
+    if (pkt) dart_destroy(pkt);
     return true;
   }
 

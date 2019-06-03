@@ -19,6 +19,34 @@
 
 #define DART_FAILURE              (-1)
 
+#define DART_CONCAT_IMPL(a, b) a##b
+#define DART_CONCAT(a, b) DART_CONCAT_IMPL(a, b)
+
+#ifdef __COUNTER__
+#define DART_GEN_UNIQUE_NAME(base)                                                          \
+  DART_CONCAT(base, __COUNTER__)
+
+#define DART_FOR_EACH_IMPL(aggr, value, it_func, it_name, err_name)                         \
+  dart_iterator_t it_name;                                                                  \
+  dart_err_t err_name = it_func(&it_name, aggr);                                            \
+  err_name = (err_name) ? err_name : dart_iterator_get_err(value, &it_name);                \
+  for (; err_name == DART_NO_ERROR && !dart_iterator_done_destroy(&it_name, value);         \
+          err_name = (dart_iterator_next(&it_name),                                         \
+                      dart_destroy(value),                                                  \
+                      dart_iterator_get_err(value, &it_name)))
+
+#define DART_FOR_EACH(aggr, value, it_func, it_name, err_name)                              \
+  DART_FOR_EACH_IMPL(aggr, value, it_func, it_name, err_name)
+
+#define dart_for_each(aggr, value)                                                          \
+  DART_FOR_EACH(aggr, value, dart_iterator_init_err,                                        \
+      DART_GEN_UNIQUE_NAME(__dart_iterator__), DART_GEN_UNIQUE_NAME(__dart_err__))
+
+#define dart_for_each_key(aggr, value)                                                      \
+  DART_FOR_EACH(aggr, value, dart_iterator_init_key_err,                                    \
+      DART_GEN_UNIQUE_NAME(__dart_iterator__), DART_GEN_UNIQUE_NAME(__dart_err__))
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -480,7 +508,7 @@ extern "C" {
   dart_err_t dart_iterator_get_err(dart_packet_t* dst, dart_iterator_t const* src);
   dart_err_t dart_iterator_next(dart_iterator_t* dst);
   bool dart_iterator_done(dart_iterator_t const* src);
-  bool dart_iterator_done_destroy(dart_iterator_t* dst);
+  bool dart_iterator_done_destroy(dart_iterator_t* dst, dart_packet_t* pkt);
 
   // error handling functions.
   char const* dart_get_error();

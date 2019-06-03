@@ -128,6 +128,7 @@ SCENARIO("arrays can be iterated over", "[abi unit]") {
           dart_destroy(&five);
         });
         REQUIRE(dart_iterator_done(&it));
+        dart_iterator_destroy(&it);
 
         REQUIRE(dart_is_int(&one));
         REQUIRE(dart_int_get(&one) == 1);
@@ -138,6 +139,24 @@ SCENARIO("arrays can be iterated over", "[abi unit]") {
         REQUIRE(dart_is_str(&four));
         REQUIRE(dart_str_get(&four) == "fixed"s);
         REQUIRE(dart_str_get(&five) == "dynamic"s);
+      }
+    }
+
+    WHEN("we use automatic iteration") {
+      int idx = 0;
+      dart_packet_t val;
+      THEN("it visits all values in order") {
+        dart_for_each(&arr, &val) {
+          // Get the value manually.
+          auto verify = dart_arr_get(&arr, idx++);
+          auto guard = make_scope_guard([&] { dart_destroy(&verify); });
+
+          // Check it
+          REQUIRE(!dart_is_null(&val));
+          REQUIRE(!dart_is_null(&verify));
+          REQUIRE(dart_get_type(&val) == dart_get_type(&verify));
+          REQUIRE(dart_equal(&val, &verify));
+        }
       }
     }
   }
