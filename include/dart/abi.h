@@ -235,12 +235,76 @@ extern "C" {
   dart_err_t dart_heap_from_json_len_rc_err(dart_heap_t* pkt, dart_rc_type_t rc, char const* str, size_t len);
   char* dart_heap_to_json(dart_heap_t const* pkt, size_t* len);
 
+  // dart::heap transition operations.
+  dart_buffer_t dart_heap_lower(dart_heap_t const* pkt);
+  dart_buffer_t dart_heap_finalize(dart_heap_t const* pkt);
+  dart_err_t dart_heap_lower_err(dart_buffer_t* dst, dart_heap_t const* pkt);
+  dart_err_t dart_heap_finalize_err(dart_buffer_t* dst, dart_heap_t const* pkt);
+
   // dart::buffer lifecycle functions.
-  dart_err_t dart_buffer_init(dart_buffer_t* pkt);
-  dart_err_t dart_buffer_init_rc(dart_buffer_t* pkt, dart_rc_type_t rc);
-  dart_err_t dart_buffer_copy(dart_buffer_t* dst, dart_buffer_t const* src);
-  dart_err_t dart_buffer_move(dart_buffer_t* dst, dart_buffer_t* src);
+  dart_buffer_t dart_buffer_init();
+  dart_err_t dart_buffer_init_err(dart_buffer_t* pkt);
+  dart_buffer_t dart_buffer_init_rc(dart_rc_type_t rc);
+  dart_err_t dart_buffer_init_rc_err(dart_buffer_t* pkt, dart_rc_type_t rc);
+  dart_buffer_t dart_buffer_copy(dart_buffer_t const* src);
+  dart_err_t dart_buffer_copy_err(dart_buffer_t* dst, dart_buffer_t const* src);
+  dart_buffer_t dart_buffer_move(dart_buffer_t* src);
+  dart_err_t dart_buffer_move_err(dart_buffer_t* dst, dart_buffer_t* src);
   dart_err_t dart_buffer_destroy(dart_buffer_t* pkt);
+
+  // dart::buffer object retrieval operations.
+  dart_buffer_t dart_buffer_obj_get(dart_buffer_t const* src, char const* key);
+  dart_err_t dart_buffer_obj_get_err(dart_buffer_t* dst, dart_buffer_t const* src, char const* key);
+  dart_buffer_t dart_buffer_obj_get_len(dart_buffer_t const* src, char const* key, size_t len);
+  dart_err_t dart_buffer_obj_get_len_err(dart_buffer_t* dst, dart_buffer_t const* src, char const* key, size_t len);
+
+  // dart::buffer array retrieval operations.
+  dart_buffer_t dart_buffer_arr_get(dart_buffer_t const* src, int64_t idx);
+  dart_err_t dart_buffer_arr_get_err(dart_buffer_t* dst, dart_buffer_t const* src, int64_t idx);
+
+  // dart::buffer string retrieval operations.
+  char const* dart_buffer_str_get(dart_buffer_t const* src);
+  char const* dart_buffer_str_get_len(dart_buffer_t const* src, size_t* len);
+
+  // dart::buffer integer retrieval operations.
+  int64_t dart_buffer_int_get(dart_buffer_t const* src);
+  dart_err_t dart_buffer_int_get_err(dart_buffer_t const* src, int64_t* val);
+
+  // dart::buffer decimal retrieval operations.
+  double dart_buffer_dcm_get(dart_buffer_t const* src);
+  dart_err_t dart_buffer_dcm_get_err(dart_buffer_t const* src, double* val);
+
+  // dart::buffer boolean retrieval operations.
+  int dart_buffer_bool_get(dart_buffer_t const* src);
+  dart_err_t dart_buffer_bool_get_err(dart_buffer_t const* src, int* val);
+
+  // dart::buffer introspection operations.
+  bool dart_buffer_equal(dart_buffer_t const* lhs, dart_buffer_t const* rhs);
+  bool dart_buffer_is_obj(dart_buffer_t const* src);
+  bool dart_buffer_is_arr(dart_buffer_t const* src);
+  bool dart_buffer_is_str(dart_buffer_t const* src);
+  bool dart_buffer_is_int(dart_buffer_t const* src);
+  bool dart_buffer_is_dcm(dart_buffer_t const* src);
+  bool dart_buffer_is_bool(dart_buffer_t const* src);
+  bool dart_buffer_is_null(dart_buffer_t const* src);
+  dart_type_t dart_buffer_get_type(dart_buffer_t const* src);
+
+  // dart::buffer json operations.
+  dart_buffer_t dart_buffer_from_json(char const* str);
+  dart_err_t dart_buffer_from_json_err(dart_buffer_t* pkt, char const* str);
+  dart_buffer_t dart_buffer_from_json_rc(dart_rc_type_t rc, char const* str);
+  dart_err_t dart_buffer_from_json_rc_err(dart_buffer_t* pkt, dart_rc_type_t rc, char const* str);
+  dart_buffer_t dart_buffer_from_json_len(char const* str, size_t len);
+  dart_err_t dart_buffer_from_json_len_err(dart_buffer_t* pkt, char const* str, size_t len);
+  dart_buffer_t dart_buffer_from_json_len_rc(dart_rc_type_t rc, char const* str, size_t len);
+  dart_err_t dart_buffer_from_json_len_rc_err(dart_buffer_t* pkt, dart_rc_type_t rc, char const* str, size_t len);
+  char* dart_buffer_to_json(dart_buffer_t const* pkt, size_t* len);
+
+  // dart::buffer transition functions.
+  dart_heap_t dart_buffer_lift(dart_buffer_t const* src);
+  dart_heap_t dart_buffer_definalize(dart_buffer_t const* src);
+  dart_err_t dart_buffer_lift_err(dart_heap_t* dst, dart_buffer_t const* src);
+  dart_err_t dart_buffer_definalize_err(dart_heap_t* dst, dart_buffer_t const* src);
 
   // dart::packet lifecycle functions.
   dart_err_t dart_packet_init(dart_packet_t* pkt);
