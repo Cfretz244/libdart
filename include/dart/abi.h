@@ -198,8 +198,8 @@ extern "C" {
   // dart::heap object insert operations.
   dart_err_t dart_heap_obj_insert_heap(dart_heap_t* pkt, char const* key, dart_heap_t const* val);
   dart_err_t dart_heap_obj_insert_heap_len(dart_heap_t* pkt, char const* key, size_t len, dart_heap_t const* val);
-  dart_err_t dart_heap_obj_take_heap(dart_heap_t* pkt, char const* key, dart_heap_t* val);
-  dart_err_t dart_heap_obj_take_heap_len(dart_heap_t* pkt, char const* key, size_t len, dart_heap_t* val);
+  dart_err_t dart_heap_obj_insert_take_heap(dart_heap_t* pkt, char const* key, dart_heap_t* val);
+  dart_err_t dart_heap_obj_insert_take_heap_len(dart_heap_t* pkt, char const* key, size_t len, dart_heap_t* val);
   dart_err_t dart_heap_obj_insert_str(dart_heap_t* pkt, char const* key, char const* val);
   dart_err_t dart_heap_obj_insert_str_len(dart_heap_t* pkt, char const* key, size_t len, char const* val, size_t val_len);
   dart_err_t dart_heap_obj_insert_int(dart_heap_t* pkt, char const* key, int64_t val);
@@ -211,19 +211,45 @@ extern "C" {
   dart_err_t dart_heap_obj_insert_null(dart_heap_t* pkt, char const* key);
   dart_err_t dart_heap_obj_insert_null_len(dart_heap_t* pkt, char const* key, size_t len);
 
+  // dart::heap object set operations.
+  dart_err_t dart_heap_obj_set_heap(dart_heap_t* pkt, char const* key, dart_heap_t const* val);
+  dart_err_t dart_heap_obj_set_heap_len(dart_heap_t* pkt, char const* key, size_t len, dart_heap_t const* val);
+  dart_err_t dart_heap_obj_set_take_heap(dart_heap_t* pkt, char const* key, dart_heap_t* val);
+  dart_err_t dart_heap_obj_set_take_heap_len(dart_heap_t* pkt, char const* key, size_t len, dart_heap_t* val);
+  dart_err_t dart_heap_obj_set_str(dart_heap_t* pkt, char const* key, char const* val);
+  dart_err_t dart_heap_obj_set_str_len(dart_heap_t* pkt, char const* key, size_t len, char const* val, size_t val_len);
+  dart_err_t dart_heap_obj_set_int(dart_heap_t* pkt, char const* key, int64_t val);
+  dart_err_t dart_heap_obj_set_int_len(dart_heap_t* pkt, char const* key, size_t len, int64_t val);
+  dart_err_t dart_heap_obj_set_dcm(dart_heap_t* pkt, char const* key, double val);
+  dart_err_t dart_heap_obj_set_dcm_len(dart_heap_t* pkt, char const* key, size_t len, double val);
+  dart_err_t dart_heap_obj_set_bool(dart_heap_t* pkt, char const* key, int val);
+  dart_err_t dart_heap_obj_set_bool_len(dart_heap_t* pkt, char const* key, size_t len, int val);
+  dart_err_t dart_heap_obj_set_null(dart_heap_t* pkt, char const* key);
+  dart_err_t dart_heap_obj_set_null_len(dart_heap_t* pkt, char const* key, size_t len);
+
   // dart::heap object erase operations.
   dart_err_t dart_heap_obj_erase(dart_heap_t* pkt, char const* key);
   dart_err_t dart_heap_obj_erase_len(dart_heap_t* pkt, char const* key, size_t len);
 
   // dart::heap array insert operations.
   dart_err_t dart_heap_arr_insert_heap(dart_heap_t* pkt, size_t idx, dart_heap_t const* val);
-  dart_err_t dart_heap_arr_take_heap(dart_heap_t* pkt, size_t idx, dart_heap_t* val);
+  dart_err_t dart_heap_arr_insert_take_heap(dart_heap_t* pkt, size_t idx, dart_heap_t* val);
   dart_err_t dart_heap_arr_insert_str(dart_heap_t* pkt, size_t idx, char const* val);
   dart_err_t dart_heap_arr_insert_str_len(dart_heap_t* pkt, size_t idx, char const* val, size_t val_len);
   dart_err_t dart_heap_arr_insert_int(dart_heap_t* pkt, size_t idx, int64_t val);
   dart_err_t dart_heap_arr_insert_dcm(dart_heap_t* pkt, size_t idx, double val);
   dart_err_t dart_heap_arr_insert_bool(dart_heap_t* pkt, size_t idx, int val);
   dart_err_t dart_heap_arr_insert_null(dart_heap_t* pkt, size_t idx);
+
+  // dart::heap array set operations.
+  dart_err_t dart_heap_arr_set_heap(dart_heap_t* pkt, size_t idx, dart_heap_t const* val);
+  dart_err_t dart_heap_arr_set_take_heap(dart_heap_t* pkt, size_t idx, dart_heap_t* val);
+  dart_err_t dart_heap_arr_set_str(dart_heap_t* pkt, size_t idx, char const* val);
+  dart_err_t dart_heap_arr_set_str_len(dart_heap_t* pkt, size_t idx, char const* val, size_t val_len);
+  dart_err_t dart_heap_arr_set_int(dart_heap_t* pkt, size_t idx, int64_t val);
+  dart_err_t dart_heap_arr_set_dcm(dart_heap_t* pkt, size_t idx, double val);
+  dart_err_t dart_heap_arr_set_bool(dart_heap_t* pkt, size_t idx, int val);
+  dart_err_t dart_heap_arr_set_null(dart_heap_t* pkt, size_t idx);
 
   // dart::heap array erase operations.
   dart_err_t dart_heap_arr_erase(dart_heap_t* pkt, size_t idx);
@@ -417,8 +443,8 @@ extern "C" {
   // generic object insert operations.
   dart_err_t dart_obj_insert_dart(void* dst, char const* key, void const* val);
   dart_err_t dart_obj_insert_dart_len(void* dst, char const* key, size_t len, void const* val);
-  dart_err_t dart_obj_take_dart(void* dst, char const* key, void* val);
-  dart_err_t dart_obj_take_dart_len(void* dst, char const* key, size_t len, void* val);
+  dart_err_t dart_obj_insert_take_dart(void* dst, char const* key, void* val);
+  dart_err_t dart_obj_insert_take_dart_len(void* dst, char const* key, size_t len, void* val);
   dart_err_t dart_obj_insert_str(void* dst, char const* key, char const* val);
   dart_err_t dart_obj_insert_str_len(void* dst, char const* key, size_t len, char const* val, size_t val_len);
   dart_err_t dart_obj_insert_int(void* dst, char const* key, int64_t val);
@@ -430,19 +456,45 @@ extern "C" {
   dart_err_t dart_obj_insert_null(void* dst, char const* key);
   dart_err_t dart_obj_insert_null_len(void* dst, char const* key, size_t len);
 
+  // generic object set operations.
+  dart_err_t dart_obj_set_dart(void* dst, char const* key, void const* val);
+  dart_err_t dart_obj_set_dart_len(void* dst, char const* key, size_t len, void const* val);
+  dart_err_t dart_obj_set_take_dart(void* dst, char const* key, void* val);
+  dart_err_t dart_obj_set_take_dart_len(void* dst, char const* key, size_t len, void* val);
+  dart_err_t dart_obj_set_str(void* dst, char const* key, char const* val);
+  dart_err_t dart_obj_set_str_len(void* dst, char const* key, size_t len, char const* val, size_t val_len);
+  dart_err_t dart_obj_set_int(void* dst, char const* key, int64_t val);
+  dart_err_t dart_obj_set_int_len(void* dst, char const* key, size_t len, int64_t val);
+  dart_err_t dart_obj_set_dcm(void* dst, char const* key, double val);
+  dart_err_t dart_obj_set_dcm_len(void* dst, char const* key, size_t len, double val);
+  dart_err_t dart_obj_set_bool(void* dst, char const* key, int val);
+  dart_err_t dart_obj_set_bool_len(void* dst, char const* key, size_t len, int val);
+  dart_err_t dart_obj_set_null(void* dst, char const* key);
+  dart_err_t dart_obj_set_null_len(void* dst, char const* key, size_t len);
+
   // generic object erase operations.
   dart_err_t dart_obj_erase(void* dst, char const* key);
   dart_err_t dart_obj_erase_len(void* dst, char const* key, size_t len);
 
   // generic array insert operations.
   dart_err_t dart_arr_insert_dart(void* dst, size_t idx, void const* val);
-  dart_err_t dart_arr_take_dart(void* dst, size_t idx, void* val);
+  dart_err_t dart_arr_insert_take_dart(void* dst, size_t idx, void* val);
   dart_err_t dart_arr_insert_str(void* dst, size_t idx, char const* val);
   dart_err_t dart_arr_insert_str_len(void* dst, size_t idx, char const* val, size_t val_len);
   dart_err_t dart_arr_insert_int(void* dst, size_t idx, int64_t val);
   dart_err_t dart_arr_insert_dcm(void* dst, size_t idx, double val);
   dart_err_t dart_arr_insert_bool(void* dst, size_t idx, int val);
   dart_err_t dart_arr_insert_null(void* dst, size_t idx);
+
+  // generic array set operations.
+  dart_err_t dart_arr_set_dart(void* dst, size_t idx, void const* val);
+  dart_err_t dart_arr_set_take_dart(void* dst, size_t idx, void* val);
+  dart_err_t dart_arr_set_str(void* dst, size_t idx, char const* val);
+  dart_err_t dart_arr_set_str_len(void* dst, size_t idx, char const* val, size_t val_len);
+  dart_err_t dart_arr_set_int(void* dst, size_t idx, int64_t val);
+  dart_err_t dart_arr_set_dcm(void* dst, size_t idx, double val);
+  dart_err_t dart_arr_set_bool(void* dst, size_t idx, int val);
+  dart_err_t dart_arr_set_null(void* dst, size_t idx);
 
   // generic array erase operations.
   dart_err_t dart_arr_erase(void* pkt, size_t idx);

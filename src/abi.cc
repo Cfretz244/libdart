@@ -129,6 +129,26 @@ namespace {
   }
 
   template <class Packet, class Key, class Value>
+  void safe_set_impl(Packet&, Key&&, Value&&, std::false_type) {
+    throw dart::type_error("Unsupported packet type setion requested");
+  }
+
+  template <class Packet, class Key, class Value>
+  void safe_set_impl(Packet& pkt, Key&& key, Value&& val, std::true_type) {
+    pkt.set(std::forward<Key>(key), std::forward<Value>(val));
+  }
+
+  template <class Packet, class Key, class Value>
+  void safe_set(Packet& pkt, Key&& key, Value&& val) {
+    safe_set_impl(pkt, std::forward<Key>(key), std::forward<Value>(val),
+      dart::meta::conjunction<
+        dart::convert::is_castable<Key, std::decay_t<Packet>>,
+        dart::convert::is_castable<Value, std::decay_t<Packet>>
+      > {}
+    );
+  }
+
+  template <class Packet, class Key, class Value>
   void safe_insert_impl(Packet&, Key&&, Value&&, std::false_type) {
     throw dart::type_error("Unsupported packet type insertion requested");
   }
@@ -1098,11 +1118,11 @@ extern "C" {
     );
   }
 
-  dart_err_t dart_heap_obj_take_heap(dart_heap_t* dst, char const* key, dart_heap_t* val) {
-    return dart_heap_obj_take_heap_len(dst, key, strlen(key), val);
+  dart_err_t dart_heap_obj_insert_take_heap(dart_heap_t* dst, char const* key, dart_heap_t* val) {
+    return dart_heap_obj_insert_take_heap_len(dst, key, strlen(key), val);
   }
 
-  dart_err_t dart_heap_obj_take_heap_len(dart_heap_t* dst, char const* key, size_t len, dart_heap_t* val) {
+  dart_err_t dart_heap_obj_insert_take_heap_len(dart_heap_t* dst, char const* key, size_t len, dart_heap_t* val) {
     auto insert = [=] (auto& dst, auto& val) { dst.insert(string_view {key, len}, std::move(val)); };
     return heap_access(
       compose(
@@ -1192,6 +1212,119 @@ extern "C" {
     );
   }
 
+  dart_err_t dart_heap_obj_set_heap(dart_heap_t* dst, char const* key, dart_heap_t const* val) {
+    return dart_heap_obj_set_heap_len(dst, key, strlen(key), val);
+  }
+
+  dart_err_t dart_heap_obj_set_heap_len(dart_heap_t* dst, char const* key, size_t len, dart_heap_t const* val) {
+    auto set = [=] (auto& dst, auto& val) { dst.set(string_view {key, len}, val); };
+    return heap_access(
+      compose(
+        [=] (dart::heap& dst) {
+          return heap_access([=, &dst] (dart::heap const& val) { set(dst, val); }, val);
+        },
+        [=] (dart::unsafe_heap& dst) {
+          return heap_access([=, &dst] (dart::unsafe_heap const& val) { set(dst, val); }, val);
+        }
+      ),
+      dst
+    );
+  }
+
+  dart_err_t dart_heap_obj_set_take_heap(dart_heap_t* dst, char const* key, dart_heap_t* val) {
+    return dart_heap_obj_set_take_heap_len(dst, key, strlen(key), val);
+  }
+
+  dart_err_t dart_heap_obj_set_take_heap_len(dart_heap_t* dst, char const* key, size_t len, dart_heap_t* val) {
+    auto set = [=] (auto& dst, auto& val) { dst.set(string_view {key, len}, std::move(val)); };
+    return heap_access(
+      compose(
+        [=] (dart::heap& dst) {
+          return heap_access([=, &dst] (dart::heap& val) { set(dst, val); }, val);
+        },
+        [=] (dart::unsafe_heap& dst) {
+          return heap_access([=, &dst] (dart::unsafe_heap& val) { set(dst, val); }, val);
+        }
+      ),
+      dst
+    );
+  }
+
+  dart_err_t dart_heap_obj_set_str(dart_heap_t* dst, char const* key, char const* val) {
+    return dart_heap_obj_set_str_len(dst, key, strlen(key), val, strlen(val));
+  }
+
+  dart_err_t dart_heap_obj_set_str_len(dart_heap_t* dst, char const* key, size_t len, char const* val, size_t val_len) {
+    auto set = [=] (auto& dst) { dst.set(string_view {key, len}, string_view {val, val_len}); };
+    return heap_access(
+      compose(
+        [set] (dart::heap& dst) { set(dst); },
+        [set] (dart::unsafe_heap& dst) { set(dst); }
+      ),
+      dst
+    );
+  }
+
+  dart_err_t dart_heap_obj_set_int(dart_heap_t* dst, char const* key, int64_t val) {
+    return dart_heap_obj_set_int_len(dst, key, strlen(key), val);
+  }
+
+  dart_err_t dart_heap_obj_set_int_len(dart_heap_t* dst, char const* key, size_t len, int64_t val) {
+    auto set = [=] (auto& dst) { dst.set(string_view {key, len}, val); };
+    return heap_access(
+      compose(
+        [set] (dart::heap& dst) { set(dst); },
+        [set] (dart::unsafe_heap& dst) { set(dst); }
+      ),
+      dst
+    );
+  }
+
+  dart_err_t dart_heap_obj_set_dcm(dart_heap_t* dst, char const* key, double val) {
+    return dart_heap_obj_set_dcm_len(dst, key, strlen(key), val);
+  }
+
+  dart_err_t dart_heap_obj_set_dcm_len(dart_heap_t* dst, char const* key, size_t len, double val) {
+    auto set = [=] (auto& dst) { dst.set(string_view {key, len}, val); };
+    return heap_access(
+      compose(
+        [set] (dart::heap& dst) { set(dst); },
+        [set] (dart::unsafe_heap& dst) { set(dst); }
+      ),
+      dst
+    );
+  }
+
+  dart_err_t dart_heap_obj_set_bool(dart_heap_t* dst, char const* key, int val) {
+    return dart_heap_obj_set_bool_len(dst, key, strlen(key), val);
+  }
+
+  dart_err_t dart_heap_obj_set_bool_len(dart_heap_t* dst, char const* key, size_t len, int val) {
+    auto set = [=] (auto& dst) { dst.set(string_view {key, len}, static_cast<bool>(val)); };
+    return heap_access(
+      compose(
+        [set] (dart::heap& dst) { set(dst); },
+        [set] (dart::unsafe_heap& dst) { set(dst); }
+      ),
+      dst
+    );
+  }
+
+  dart_err_t dart_heap_obj_set_null(dart_heap_t* dst, char const* key) {
+    return dart_heap_obj_set_null_len(dst, key, strlen(key));
+  }
+
+  dart_err_t dart_heap_obj_set_null_len(dart_heap_t* dst, char const* key, size_t len) {
+    auto set = [=] (auto& dst) { dst.set(string_view {key, len}, nullptr); };
+    return heap_access(
+      compose(
+        [set] (dart::heap& dst) { set(dst); },
+        [set] (dart::unsafe_heap& dst) { set(dst); }
+      ),
+      dst
+    );
+  }
+
   dart_err_t dart_heap_obj_erase(dart_heap_t* dst, char const* key) {
     return dart_heap_obj_erase_len(dst, key, strlen(key));
   }
@@ -1222,7 +1355,7 @@ extern "C" {
     );
   }
 
-  dart_err_t dart_heap_arr_take_heap(dart_heap_t* dst, size_t idx, dart_heap_t* val) {
+  dart_err_t dart_heap_arr_insert_take_heap(dart_heap_t* dst, size_t idx, dart_heap_t* val) {
     auto insert = [=] (auto& dst, auto& val) { dst.insert(idx, std::move(val)); };
     return heap_access(
       compose(
@@ -1291,6 +1424,95 @@ extern "C" {
       compose(
         [=] (dart::heap& dst) { insert(dst); },
         [=] (dart::unsafe_heap& dst) { insert(dst); }
+      ),
+      dst
+    );
+  }
+
+  dart_err_t dart_heap_arr_set_heap(dart_heap_t* dst, size_t idx, dart_heap_t const* val) {
+    auto set = [=] (auto& dst, auto& val) { dst.set(idx, val); };
+    return heap_access(
+      compose(
+        [=] (dart::heap& dst) {
+          return heap_access([=, &dst] (dart::heap const& val) { set(dst, val); }, val);
+        },
+        [=] (dart::unsafe_heap& dst) {
+          return heap_access([=, &dst] (dart::unsafe_heap const& val) { set(dst, val); }, val);
+        }
+      ),
+      dst
+    );
+  }
+
+  dart_err_t dart_heap_arr_set_take_heap(dart_heap_t* dst, size_t idx, dart_heap_t* val) {
+    auto set = [=] (auto& dst, auto& val) { dst.set(idx, std::move(val)); };
+    return heap_access(
+      compose(
+        [=] (dart::heap& dst) {
+          return heap_access([=, &dst] (dart::heap& val) { set(dst, val); }, val);
+        },
+        [=] (dart::unsafe_heap& dst) {
+          return heap_access([=, &dst] (dart::unsafe_heap& val) { set(dst, val); }, val);
+        }
+      ),
+      dst
+    );
+  }
+
+  dart_err_t dart_heap_arr_set_str(dart_heap_t* dst, size_t idx, char const* val) {
+    return dart_heap_arr_set_str_len(dst, idx, val, strlen(val));
+  }
+
+  dart_err_t dart_heap_arr_set_str_len(dart_heap_t* dst, size_t idx, char const* val, size_t val_len) {
+    auto set = [=] (auto& dst) { dst.set(idx, string_view {val, val_len}); };
+    return heap_access(
+      compose(
+        [set] (dart::heap& dst) { set(dst); },
+        [set] (dart::unsafe_heap& dst) { set(dst); }
+      ),
+      dst
+    );
+  }
+
+  dart_err_t dart_heap_arr_set_int(dart_heap_t* dst, size_t idx, int64_t val) {
+    auto set = [=] (auto& dst) { dst.set(idx, val); };
+    return heap_access(
+      compose(
+        [set] (dart::heap& dst) { set(dst); },
+        [set] (dart::unsafe_heap& dst) { set(dst); }
+      ),
+      dst
+    );
+  }
+
+  dart_err_t dart_heap_arr_set_dcm(dart_heap_t* dst, size_t idx, double val) {
+    auto set = [=] (auto& dst) { dst.set(idx, val); };
+    return heap_access(
+      compose(
+        [set] (dart::heap& dst) { set(dst); },
+        [set] (dart::unsafe_heap& dst) { set(dst); }
+      ),
+      dst
+    );
+  }
+
+  dart_err_t dart_heap_arr_set_bool(dart_heap_t* dst, size_t idx, int val) {
+    auto set = [=] (auto& dst) { dst.set(idx, static_cast<bool>(val)); };
+    return heap_access(
+      compose(
+        [set] (dart::heap& dst) { set(dst); },
+        [set] (dart::unsafe_heap& dst) { set(dst); }
+      ),
+      dst
+    );
+  }
+
+  dart_err_t dart_heap_arr_set_null(dart_heap_t* dst, size_t idx) {
+    auto set = [=] (auto& dst) { dst.set(idx, nullptr); };
+    return heap_access(
+      compose(
+        [=] (dart::heap& dst) { set(dst); },
+        [=] (dart::unsafe_heap& dst) { set(dst); }
       ),
       dst
     );
@@ -2469,11 +2691,11 @@ extern "C" {
     );
   }
 
-  dart_err_t dart_obj_take_dart(void* dst, char const* key, void* val) {
-    return dart_obj_take_dart_len(dst, key, strlen(key), val);
+  dart_err_t dart_obj_insert_take_dart(void* dst, char const* key, void* val) {
+    return dart_obj_insert_take_dart_len(dst, key, strlen(key), val);
   }
 
-  dart_err_t dart_obj_take_dart_len(void* dst, char const* key, size_t len, void* val) {
+  dart_err_t dart_obj_insert_take_dart_len(void* dst, char const* key, size_t len, void* val) {
     return generic_access(
       mutable_visitor(
         [key, len, val] (auto& dst) {
@@ -2541,6 +2763,95 @@ extern "C" {
     );
   }
 
+  dart_err_t dart_obj_set_dart(void* dst, char const* key, void const* val) {
+    return dart_obj_set_dart_len(dst, key, strlen(key), val);
+  }
+
+  dart_err_t dart_obj_set_dart_len(void* dst, char const* key, size_t len, void const* val) {
+    return generic_access(
+      mutable_visitor(
+        [key, len, val] (auto& dst) {
+          return generic_access([&dst, key, len] (auto& val) {
+            safe_set(dst, string_view {key, len}, val);
+          }, val);
+        }
+      ),
+      dst
+    );
+  }
+
+  dart_err_t dart_obj_set_take_dart(void* dst, char const* key, void* val) {
+    return dart_obj_set_take_dart_len(dst, key, strlen(key), val);
+  }
+
+  dart_err_t dart_obj_set_take_dart_len(void* dst, char const* key, size_t len, void* val) {
+    return generic_access(
+      mutable_visitor(
+        [key, len, val] (auto& dst) {
+          return generic_access([&dst, key, len] (auto& val) {
+            safe_set(dst, string_view {key, len}, std::move(val));
+          }, val);
+        }
+      ),
+      dst
+    );
+  }
+
+  dart_err_t dart_obj_set_str(void* dst, char const* key, char const* val) {
+    return dart_obj_set_str_len(dst, key, strlen(key), val, strlen(val));
+  }
+
+  dart_err_t dart_obj_set_str_len(void* dst, char const* key, size_t len, char const* val, size_t val_len) {
+    return generic_access(
+      mutable_visitor([=] (auto& dst) { dst.set(string_view {key, len}, string_view {val, val_len}); }),
+      dst
+    );
+  }
+
+  dart_err_t dart_obj_set_int(void* dst, char const* key, int64_t val) {
+    return dart_obj_set_int_len(dst, key, strlen(key), val);
+  }
+
+  dart_err_t dart_obj_set_int_len(void* dst, char const* key, size_t len, int64_t val) {
+    return generic_access(
+      mutable_visitor([=] (auto& dst) { dst.set(string_view {key, len}, val); }),
+      dst
+    );
+  }
+
+  dart_err_t dart_obj_set_dcm(void* dst, char const* key, double val) {
+    return dart_obj_set_dcm_len(dst, key, strlen(key), val);
+  }
+
+  dart_err_t dart_obj_set_dcm_len(void* dst, char const* key, size_t len, double val) {
+    return generic_access(
+      mutable_visitor([=] (auto& dst) { dst.set(string_view {key, len}, val); }),
+      dst
+    );
+  }
+
+  dart_err_t dart_obj_set_bool(void* dst, char const* key, int val) {
+    return dart_obj_set_bool_len(dst, key, strlen(key), val);
+  }
+
+  dart_err_t dart_obj_set_bool_len(void* dst, char const* key, size_t len, int val) {
+    return generic_access(
+      mutable_visitor([=] (auto& dst) { dst.set(string_view {key, len}, static_cast<bool>(val)); }),
+      dst
+    );
+  }
+
+  dart_err_t dart_obj_set_null(void* dst, char const* key) {
+    return dart_obj_set_null_len(dst, key, strlen(key));
+  }
+
+  dart_err_t dart_obj_set_null_len(void* dst, char const* key, size_t len) {
+    return generic_access(
+      mutable_visitor([=] (auto& dst) { dst.set(string_view {key, len}, nullptr); }),
+      dst
+    );
+  }
+
   dart_err_t dart_obj_erase(void* dst, char const* key) {
     return dart_obj_erase_len(dst, key, strlen(key));
   }
@@ -2563,7 +2874,7 @@ extern "C" {
     );
   }
 
-  dart_err_t dart_arr_take_dart(void* dst, size_t idx, void* val) {
+  dart_err_t dart_arr_insert_take_dart(void* dst, size_t idx, void* val) {
     return generic_access(
       mutable_visitor(
         [idx, val] (auto& dst) {
@@ -2609,6 +2920,67 @@ extern "C" {
   dart_err_t dart_arr_insert_null(void* dst, size_t idx) {
     return generic_access(
       mutable_visitor([=] (auto& dst) { dst.insert(idx, nullptr); }),
+      dst
+    );
+  }
+
+  dart_err_t dart_arr_set_dart(void* dst, size_t idx, void const* val) {
+    return generic_access(
+      mutable_visitor(
+        [idx, val] (auto& dst) {
+          return generic_access([&dst, idx] (auto& val) { safe_set(dst, idx, val); }, val);
+        }
+      ),
+      dst
+    );
+  }
+
+  dart_err_t dart_arr_set_take_dart(void* dst, size_t idx, void* val) {
+    return generic_access(
+      mutable_visitor(
+        [idx, val] (auto& dst) {
+          return generic_access([&dst, idx] (auto& val) { safe_set(dst, idx, std::move(val)); }, val);
+        }
+      ),
+      dst
+    );
+  }
+
+  dart_err_t dart_arr_set_str(void* dst, size_t idx, char const* val) {
+    return dart_arr_set_str_len(dst, idx, val, strlen(val));
+  }
+
+  dart_err_t dart_arr_set_str_len(void* dst, size_t idx, char const* val, size_t val_len) {
+    return generic_access(
+      mutable_visitor([=] (auto& dst) { dst.set(idx, string_view {val, val_len}); }),
+      dst
+    );
+  }
+  
+  dart_err_t dart_arr_set_int(void* dst, size_t idx, int64_t val) {
+    return generic_access(
+      mutable_visitor([=] (auto& dst) { dst.set(idx, val); }),
+      dst
+    );
+  }
+
+  dart_err_t dart_arr_set_dcm(void* dst, size_t idx, double val) {
+    return generic_access(
+      mutable_visitor([=] (auto& dst) { dst.set(idx, val); }),
+      dst
+    );
+  }
+
+  dart_err_t dart_arr_set_bool(void* dst, size_t idx, int val) {
+    return generic_access(
+      mutable_visitor([=] (auto& dst) { dst.set(idx, val); }),
+      dst
+    );
+  }
+
+  dart_err_t dart_arr_set_null(void* dst, size_t idx) {
+    return generic_access(
+      mutable_visitor([=] (auto& dst) { dst.set(idx, nullptr); }),
       dst
     );
   }
