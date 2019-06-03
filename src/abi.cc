@@ -12,6 +12,9 @@
 static_assert(sizeof(dart::heap) <= DART_HEAP_MAX_SIZE, "Dart ABI is misconfigured");
 static_assert(sizeof(dart::buffer) <= DART_BUFFER_MAX_SIZE, "Dart ABI is misconfigured");
 static_assert(sizeof(dart::packet) <= DART_PACKET_MAX_SIZE, "Dart ABI is misconfigured");
+static_assert(sizeof(dart::heap::iterator) * 2 <= DART_ITERATOR_MAX_SIZE, "Dart ABI is misconfigured");
+static_assert(sizeof(dart::buffer::iterator) * 2 <= DART_ITERATOR_MAX_SIZE, "Dart ABI is misconfigured");
+static_assert(sizeof(dart::packet::iterator) * 2 <= DART_ITERATOR_MAX_SIZE, "Dart ABI is misconfigured");
 
 /*----- Macros -----*/
 
@@ -70,6 +73,14 @@ using maybe_const_t = std::conditional_t<
   Target const,
   Target
 >;
+
+template <template <template <class> class> class Packet>
+struct packet_builder {
+  template <template <class> class RefCount>
+  using rebind = Packet<RefCount>;
+};
+template <class PacketWrapper, template <class> class RefCount>
+using packet_t = typename PacketWrapper::template rebind<RefCount>;
 
 using string_view = dart::shim::string_view;
 
@@ -164,7 +175,7 @@ namespace {
         return call_indirection(returns_error<Func, Args...> {},
             std::forward<decltype(c)>(c), std::forward<decltype(as)>(as)...);
       },
-      [] (std::false_type, auto&&, auto&&) {
+      [] (std::false_type, auto&&, auto&&...) {
         errmsg = "Avoided a type-mismatched call of some sort. "
               "Are your rc types correct? Did you perform a bad cast?";
         return DART_CLIENT_ERROR;
@@ -251,14 +262,12 @@ namespace {
       case DART_RC_SAFE:
         {
           auto* rt_ptr = reinterpret_cast<dart::heap*>(DART_RAW_BYTES(pkt));
-          auto ret = safe_call(std::forward<Func>(cb), rt_ptr);
-          return ret ? ret : DART_NO_ERROR;
+          return safe_call(std::forward<Func>(cb), rt_ptr);
         }
       case DART_RC_UNSAFE:
         {
           auto* rt_ptr = reinterpret_cast<dart::unsafe_heap*>(DART_RAW_BYTES(pkt));
-          auto ret = safe_call(std::forward<Func>(cb), rt_ptr);
-          return ret ? ret : DART_NO_ERROR;
+          return safe_call(std::forward<Func>(cb), rt_ptr);
         }
       default:
         errmsg = "Unknown reference counter passed for dart_heap";
@@ -282,14 +291,12 @@ namespace {
       case DART_RC_SAFE:
         {
           auto* rt_ptr = reinterpret_cast<dart::buffer*>(DART_RAW_BYTES(pkt));
-          auto ret = safe_call(std::forward<Func>(cb), rt_ptr);
-          return ret ? ret : DART_NO_ERROR;
+          return safe_call(std::forward<Func>(cb), rt_ptr);
         }
       case DART_RC_UNSAFE:
         {
           auto* rt_ptr = reinterpret_cast<dart::unsafe_buffer*>(DART_RAW_BYTES(pkt));
-          auto ret = safe_call(std::forward<Func>(cb), rt_ptr);
-          return ret ? ret : DART_NO_ERROR;
+          return safe_call(std::forward<Func>(cb), rt_ptr);
         }
       default:
         errmsg = "Unknown reference counter passed for dart_buffer";
@@ -313,14 +320,12 @@ namespace {
       case DART_RC_SAFE:
         {
           auto* rt_ptr = reinterpret_cast<dart::packet*>(DART_RAW_BYTES(pkt));
-          auto ret = safe_call(std::forward<Func>(cb), rt_ptr);
-          return ret ? ret : DART_NO_ERROR;
+          return safe_call(std::forward<Func>(cb), rt_ptr);
         }
       case DART_RC_UNSAFE:
         {
           auto* rt_ptr = reinterpret_cast<dart::unsafe_packet*>(DART_RAW_BYTES(pkt));
-          auto ret = safe_call(std::forward<Func>(cb), rt_ptr);
-          return ret ? ret : DART_NO_ERROR;
+          return safe_call(std::forward<Func>(cb), rt_ptr);
         }
       default:
         errmsg = "Unknown reference counter passed for dart_packet";
@@ -370,6 +375,50 @@ namespace {
     }
   }
 
+  template <class Func, class Ptr>
+  dart_err_t iterator_construct(Func&& cb, Ptr* it) {
+    // Should do this in two functions, but honestly this was kind of fun.
+    auto rc_switch = [&] (auto id) {
+      constexpr auto is_const = std::is_const<Ptr>::value;
+      using safe_iterator = maybe_const_t<typename packet_t<decltype(id), std::shared_ptr>::iterator, is_const>;
+      using unsafe_iterator = maybe_const_t<typename packet_t<decltype(id), dart::unsafe_ptr>::iterator, is_const>;
+
+      switch (it->rtti.rc_id) {
+        case DART_RC_SAFE:
+          {
+            auto* rt_ptr = reinterpret_cast<safe_iterator*>(DART_RAW_BYTES(it));
+            return safe_call(std::forward<Func>(cb), rt_ptr, rt_ptr + 1);
+          }
+        case DART_RC_UNSAFE:
+          {
+            auto* rt_ptr = reinterpret_cast<unsafe_iterator*>(DART_RAW_BYTES(it));
+            return safe_call(std::forward<Func>(cb), rt_ptr, rt_ptr + 1);
+          }
+        default:
+          errmsg = "Unknown reference counter passed for dart_iterator";
+          return DART_CLIENT_ERROR;
+      }
+    };
+
+    // Start this thing off.
+    switch (it->rtti.p_id) {
+      case DART_HEAP:
+        return rc_switch(packet_builder<dart::basic_heap> {});
+      case DART_BUFFER:
+        return rc_switch(packet_builder<dart::basic_buffer> {});
+      case DART_PACKET:
+        return rc_switch(packet_builder<dart::basic_packet> {});
+      default:
+        errmsg = "Unknown packet type passed for dart_iterator";
+        return DART_CLIENT_ERROR;
+    }
+  }
+
+  template <class Func, class Ptr>
+  dart_err_t iterator_unwrap(Func&& cb, Ptr* it) {
+    return iterator_construct([&] (auto* begin, auto* end) { std::forward<Func>(cb)(*begin, *end); }, it);
+  }
+
   void dart_rtti_propagate(void* dst, void const* src) {
     auto* punned_dst = reinterpret_cast<dart_type_id_t*>(dst);
     auto* punned_src = reinterpret_cast<dart_type_id_t const*>(src);
@@ -403,11 +452,6 @@ namespace {
   } catch (...) {
     errmsg = "Dart caught an unexpected error type. This is a bug, please make a report";
     return DART_UNKNOWN_ERROR;
-  }
-
-  template <class Func, class Ptr>
-  dart_err_t generic_access(Func&& cb, Ptr* pkt) noexcept {
-    return err_handler([&cb, pkt] { return generic_unwrap(std::forward<Func>(cb), pkt); });
   }
 
   template <class Func, class Ptr>
@@ -460,9 +504,24 @@ namespace {
     return err_handler([&cb, pkt] { return packet_construct(std::forward<Func>(cb), pkt); });
   }
 
+  template <class Func, class Ptr>
+  dart_err_t generic_access(Func&& cb, Ptr* pkt) noexcept {
+    return err_handler([&cb, pkt] { return generic_unwrap(std::forward<Func>(cb), pkt); });
+  }
+
   template <class Func>
   dart_err_t generic_constructor_access(Func&& cb, void* pkt) noexcept {
     return err_handler([&cb, pkt] { return generic_construct(std::forward<Func>(cb), pkt); });
+  }
+
+  template <class Func, class Ptr>
+  dart_err_t iterator_access(Func&& cb, Ptr* it) noexcept {
+    return err_handler([&cb, it] { return iterator_unwrap(std::forward<Func>(cb), it); });
+  }
+
+  template <class Func, class Ptr>
+  dart_err_t iterator_constructor_access(Func&& cb, Ptr* it) noexcept {
+    return err_handler([&cb, it] { return iterator_construct(std::forward<Func>(cb), it); });
   }
 
   // Forgive me
@@ -2787,6 +2846,111 @@ extern "C" {
     );
     if (ret) return nullptr;
     return outstr;
+  }
+
+  dart_err_t dart_iterator_init_err(dart_iterator_t* dst, void const* src) {
+    // Initialize.
+    dart_rtti_propagate(dst, src);
+    return generic_access(
+      [dst] (auto& src) {
+        using iterator = typename std::decay_t<decltype(src)>::iterator;
+        return iterator_construct([&src] (iterator* begin, iterator* end) {
+          new(begin) iterator(src.begin());
+          new(end) iterator(src.end());
+        }, dst);
+      },
+      src
+    );
+  }
+
+  dart_err_t dart_iterator_init_key_err(dart_iterator_t* dst, void const* src) {
+    // Initialize.
+    dart_rtti_propagate(dst, src);
+    return generic_access(
+      [dst] (auto& src) {
+        using iterator = typename std::decay_t<decltype(src)>::iterator;
+        return iterator_construct([&src] (iterator* begin, iterator* end) {
+          new(begin) iterator(src.key_begin());
+          new(end) iterator(src.key_end());
+        }, dst);
+      },
+      src
+    );
+  }
+
+  dart_err_t dart_iterator_copy_err(dart_iterator_t* dst, dart_iterator_t const* src) {
+    // Initialize.
+    dart_rtti_propagate(dst, src);
+    return iterator_access(
+      [dst] (auto& src_curr, auto& src_end) {
+        using type = std::decay_t<decltype(src_curr)>;
+        return iterator_construct([&src_curr, &src_end] (type* dst_curr, type* dst_end) {
+          new(dst_curr) type(src_curr);
+          new(dst_end) type(src_end);
+        }, dst);
+      },
+      src
+    );
+  }
+
+  dart_err_t dart_iterator_move_err(dart_iterator_t* dst, dart_iterator_t* src) {
+    // Initialize.
+    dart_rtti_propagate(dst, src);
+    return iterator_access(
+      [dst] (auto& src_curr, auto& src_end) {
+        using type = std::decay_t<decltype(src_curr)>;
+        return iterator_construct([&src_curr, &src_end] (type* dst_curr, type* dst_end) {
+          new(dst_curr) type(std::move(src_curr));
+          new(dst_end) type(std::move(src_end));
+        }, dst);
+      },
+      src
+    );
+  }
+
+  dart_err_t dart_iterator_destroy(dart_iterator_t* dst) {
+    return iterator_access([] (auto& start, auto& end) {
+      using type = std::decay_t<decltype(start)>;
+      start.~type();
+      end.~type();
+    }, dst);
+  }
+
+  dart_packet_t dart_iterator_get(dart_iterator_t const* src) {
+    dart_packet_t dst;
+    auto err = dart_iterator_get_err(&dst, src);
+    if (err) return dart_init();
+    else return dst;
+  }
+
+  dart_err_t dart_iterator_get_err(dart_packet_t* dst, dart_iterator_t const* src) {
+    // Initialize.
+    dart_rtti_propagate(dst, src);
+    return iterator_access(
+      [dst] (auto& src_curr, auto& src_end) {
+        using type = typename std::decay_t<decltype(src_curr)>::value_type;
+        if (src_curr == src_end) throw std::runtime_error("dart_iterator has been exhausted");
+        return packet_construct([&src_curr] (type* dst) { new(dst) type(*src_curr); }, dst);
+      },
+      src
+    );
+  }
+
+  dart_err_t dart_iterator_next(dart_iterator_t* dst) {
+    return iterator_access([] (auto& curr, auto& end) { if (curr != end) curr++; }, dst);
+  }
+
+  bool dart_iterator_done(dart_iterator_t const* src) {
+    bool ended = false;
+    auto err = iterator_access([&] (auto& curr, auto& end) { ended = (curr == end); }, src);
+    if (err) return true;
+    else return ended;
+  }
+
+  bool dart_iterator_done_destroy(dart_iterator_t* dst) {
+    if (!dart_iterator_done(dst)) return false;
+    dart_iterator_destroy(dst);
+    return true;
   }
 
   char const* dart_get_error() {

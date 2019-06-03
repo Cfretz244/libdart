@@ -96,3 +96,49 @@ SCENARIO("objects are regular types", "[abi unit]") {
     }
   }
 }
+
+SCENARIO("arrays can be iterated over", "[abi unit]") {
+  GIVEN("an array with contents") {
+    auto* dyn = "dynamic";
+    auto arr = dart_arr_init_va("idbsS", 1, 3.14159, 0, "fixed", dyn, strlen(dyn));
+    auto guard = make_scope_guard([&] { dart_destroy(&arr); });
+
+    WHEN("we create an iterator") {
+      // Initialize an iterator for our array.
+      dart_iterator_t it;
+      dart_iterator_init_err(&it, &arr);
+
+      THEN("it visits all values") {
+        REQUIRE(!dart_iterator_done(&it));
+        auto one = dart_iterator_get(&it);
+        dart_iterator_next(&it);
+        auto two = dart_iterator_get(&it);
+        dart_iterator_next(&it);
+        auto three = dart_iterator_get(&it);
+        dart_iterator_next(&it);
+        auto four = dart_iterator_get(&it);
+        dart_iterator_next(&it);
+        auto five = dart_iterator_get(&it);
+        dart_iterator_next(&it);
+        auto guard = make_scope_guard([&] {
+          dart_destroy(&one);
+          dart_destroy(&two);
+          dart_destroy(&three);
+          dart_destroy(&four);
+          dart_destroy(&five);
+        });
+        REQUIRE(dart_iterator_done(&it));
+
+        REQUIRE(dart_is_int(&one));
+        REQUIRE(dart_int_get(&one) == 1);
+        REQUIRE(dart_is_dcm(&two));
+        REQUIRE(dart_dcm_get(&two) == 3.14159);
+        REQUIRE(dart_is_bool(&three));
+        REQUIRE(dart_bool_get(&three) == false);
+        REQUIRE(dart_is_str(&four));
+        REQUIRE(dart_str_get(&four) == "fixed"s);
+        REQUIRE(dart_str_get(&five) == "dynamic"s);
+      }
+    }
+  }
+}

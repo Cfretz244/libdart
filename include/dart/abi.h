@@ -8,11 +8,16 @@
 
 /*----- Macros ------*/
 
-#define DART_BUFFER_MAX_SIZE  (1U << 5U)
-#define DART_HEAP_MAX_SIZE    (1U << 6U)
-#define DART_PACKET_MAX_SIZE  DART_HEAP_MAX_SIZE
+#define DART_BUFFER_MAX_SIZE      (1U << 5U)
+#define DART_HEAP_MAX_SIZE        (1U << 6U)
+#define DART_PACKET_MAX_SIZE      DART_HEAP_MAX_SIZE
 
-#define DART_FAILURE          (-1)
+// This is embarrassing.
+// Dart iterators have big
+// jobs, and I need two of them.
+#define DART_ITERATOR_MAX_SIZE    (1U << 8U)
+
+#define DART_FAILURE              (-1)
 
 #ifdef __cplusplus
 extern "C" {
@@ -62,6 +67,12 @@ extern "C" {
     dart_rc_type_t rc_id;
   };
   typedef struct dart_type_id dart_type_id_t;
+
+  struct dart_iterator {
+    dart_type_id_t rtti;
+    char bytes[DART_ITERATOR_MAX_SIZE];
+  };
+  typedef struct dart_iterator dart_iterator_t;
 
   struct dart_heap {
     dart_type_id_t rtti;
@@ -458,6 +469,18 @@ extern "C" {
 
   // generic json functions.
   char* dart_to_json(void const* src, size_t* len);
+
+  // Iterator operations.
+  dart_err_t dart_iterator_init_err(dart_iterator_t* dst, void const* src);
+  dart_err_t dart_iterator_init_key_err(dart_iterator_t* dst, void const* src);
+  dart_err_t dart_iterator_copy_err(dart_iterator_t* dst, dart_iterator_t const* src);
+  dart_err_t dart_iterator_move_err(dart_iterator_t* dst, dart_iterator_t* src);
+  dart_err_t dart_iterator_destroy(dart_iterator_t* dst);
+  dart_packet_t dart_iterator_get(dart_iterator_t const* src);
+  dart_err_t dart_iterator_get_err(dart_packet_t* dst, dart_iterator_t const* src);
+  dart_err_t dart_iterator_next(dart_iterator_t* dst);
+  bool dart_iterator_done(dart_iterator_t const* src);
+  bool dart_iterator_done_destroy(dart_iterator_t* dst);
 
   // error handling functions.
   char const* dart_get_error();
