@@ -105,4 +105,6 @@ file(GLOB headers include/dart/*.h include/dart/*.tcc include/extern/variant.h)
 # Install our headers/abi
 install(FILES ${global_header} DESTINATION include)
 install(FILES ${headers} DESTINATION include/dart)
-install(TARGETS dart_abi ARCHIVE DESTINATION lib)
+if (build_abi)
+  install(TARGETS dart_abi ARCHIVE DESTINATION lib)
+endif (build_abi)

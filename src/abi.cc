@@ -130,7 +130,7 @@ namespace {
 
   template <class Packet, class Key, class Value>
   void safe_set_impl(Packet&, Key&&, Value&&, std::false_type) {
-    throw dart::type_error("Unsupported packet type setion requested");
+    throw dart::type_error("Unsupported packet type insertion requested");
   }
 
   template <class Packet, class Key, class Value>
@@ -168,6 +168,22 @@ namespace {
     );
   }
 
+  template <class Packet, class Value>
+  void safe_assign_impl(Packet&, Value&&, std::false_type) {
+    throw dart::type_error("Unsupported packet assignment requested");
+  }
+
+  template <class Packet, class Value>
+  void safe_assign_impl(Packet& pkt, Value&& val, std::true_type) {
+    pkt = dart::convert::cast<Packet>(std::forward<Value>(val));
+  }
+
+  template <class Packet, class Value>
+  void safe_assign(Packet& pkt, Value&& val) {
+    safe_assign_impl(pkt, std::forward<Value>(val),
+        dart::convert::is_castable<Value, std::decay_t<Packet>> {});
+  }
+
   template <class Func>
   auto mutable_visitor(Func&& cb) {
     return compose(
@@ -175,6 +191,16 @@ namespace {
       [=] (dart::unsafe_heap& pkt) { cb(pkt); },
       [=] (dart::packet& pkt) { cb(pkt); },
       [=] (dart::unsafe_packet& pkt) { cb(pkt); }
+    );
+  }
+
+  template <class Func>
+  auto immutable_visitor(Func&& cb) {
+    return compose(
+      [=] (dart::buffer const& pkt) { cb(pkt); },
+      [=] (dart::unsafe_buffer const& pkt) { cb(pkt); },
+      [=] (dart::packet const& pkt) { cb(pkt); },
+      [=] (dart::unsafe_packet const& pkt) { cb(pkt); }
     );
   }
 
@@ -1531,6 +1557,20 @@ extern "C" {
     );
   }
 
+  bool dart_heap_obj_has_key(dart_heap_t const* src, char const* key) {
+    return dart_heap_obj_has_key_len(src, key, strlen(key));
+  }
+
+  bool dart_heap_obj_has_key_len(dart_heap_t const* src, char const* key, size_t len) {
+    bool val = false;
+    auto err = heap_access(
+      [&val, key, len] (auto& src) { val = src.has_key(string_view {key, len}); },
+      src
+    );
+    if (err) return false;
+    else return val;
+  }
+
   dart_heap_t dart_heap_obj_get(dart_heap_t const* src, char const* key) {
     dart_heap_t dst;
     auto err = dart_heap_obj_get_err(&dst, src, key);
@@ -1939,6 +1979,20 @@ extern "C" {
     );
   }
 
+  bool dart_buffer_obj_has_key(dart_buffer_t const* src, char const* key) {
+    return dart_buffer_obj_has_key_len(src, key, strlen(key));
+  }
+
+  bool dart_buffer_obj_has_key_len(dart_buffer_t const* src, char const* key, size_t len) {
+    bool val = false;
+    auto err = buffer_access(
+      [&val, key, len] (auto& src) { val = src.has_key(string_view {key, len}); },
+      src
+    );
+    if (err) return false;
+    else return val;
+  }
+
   dart_buffer_t dart_buffer_obj_get(dart_buffer_t const* src, char const* key) {
     dart_buffer_t dst;
     auto err = dart_buffer_obj_get_err(&dst, src, key);
@@ -2234,13 +2288,6 @@ extern "C" {
     else return dst;
   }
 
-  dart_heap_t dart_buffer_definalize(dart_buffer_t const* src) {
-    dart_heap_t dst;
-    auto err = dart_buffer_definalize_err(&dst, src);
-    if (err) return dart_heap_init();
-    else return dst;
-  }
-
   dart_err_t dart_buffer_lift_err(dart_heap_t* dst, dart_buffer_t const* src) {
     // Initialize.
     dst->rtti = {DART_HEAP, src->rtti.rc_id};
@@ -2257,10 +2304,131 @@ extern "C" {
     );
   }
 
+  dart_heap_t dart_buffer_definalize(dart_buffer_t const* src) {
+    dart_heap_t dst;
+    auto err = dart_buffer_definalize_err(&dst, src);
+    if (err) return dart_heap_init();
+    else return dst;
+  }
+
   dart_err_t dart_buffer_definalize_err(dart_heap_t* dst, dart_buffer_t const* src) {
     return dart_buffer_lift_err(dst, src);
   }
 
+  void const* dart_buffer_get_bytes(dart_buffer_t const* src, size_t* len) {
+    void const* ptr = nullptr;
+    auto err = buffer_access(
+      [&ptr, len] (auto& src) {
+        auto bytes = src.get_bytes();
+        ptr = bytes.data();
+        if (len) *len = bytes.size();
+      },
+      src
+    );
+    if (err) return nullptr;
+    else return ptr;
+  }
+
+  void* dart_buffer_dup_bytes(dart_buffer_t const* src, size_t* len) {
+    void* ptr = nullptr;
+    auto err = buffer_access(
+      [&ptr, len] (auto& src) {
+        auto bytes = [&] {
+          if (len) return src.dup_bytes(*len);
+          else return src.dup_bytes();
+        }();
+
+        // FIXME: This is pretty not great, but it SHOULD be ok at the
+        // moment because the underlying buffer isn't ACTUALLY const.
+        // It's returned with a const pointer because it makes the type
+        // conversion logic for then passing that buffer into a packet
+        // constructor much simpler, but logically speaking the buffer
+        // is, and must be, mutable as it's owned by the client, and
+        // free doesn't take a const pointer.
+        // If you check the implementation of dart::buffer::dup_bytes
+        // you'll see that it also has to use a const_cast internally
+        // to be able to destroy the buffer.
+        ptr = const_cast<gsl::byte*>(bytes.release());
+      },
+      src
+    );
+    if (err) return nullptr;
+    else return ptr;
+  }
+
+  dart_buffer_t dart_buffer_from_bytes(void const* bytes, size_t len) {
+    dart_buffer_t dst;
+    auto err = dart_buffer_from_bytes_err(&dst, bytes, len);
+    if (err) return dart_buffer_init();
+    else return dst;
+  }
+
+  dart_err_t dart_buffer_from_bytes_err(dart_buffer_t* dst, void const* bytes, size_t len) {
+    return dart_buffer_from_bytes_rc_err(dst, DART_RC_SAFE, bytes, len);
+  }
+
+  dart_buffer_t dart_buffer_from_bytes_rc(void const* bytes, dart_rc_type_t rc, size_t len) {
+    dart_buffer_t dst;
+    auto err = dart_buffer_from_bytes_rc_err(&dst, rc, bytes, len);
+    if (err) return dart_buffer_init();
+    else return dst;
+  }
+
+  dart_err_t dart_buffer_from_bytes_rc_err(dart_buffer_t* dst, dart_rc_type_t rc, void const* bytes, size_t len) {
+    auto err = dart_buffer_init_rc_err(dst, rc);
+    if (err) return err;
+
+    // Assign to it.
+    auto* punned = reinterpret_cast<gsl::byte const*>(bytes);
+    return err_handler([=] {
+      return buffer_unwrap(
+        compose(
+          [punned, len] (dart::buffer& dst) { dst = dart::buffer {gsl::make_span(punned, len)}; },
+          [punned, len] (dart::unsafe_buffer& dst) { dst = dart::unsafe_buffer {gsl::make_span(punned, len)}; }
+        ),
+        dst
+      );
+    });
+  }
+
+  dart_buffer_t dart_buffer_take_bytes(void* bytes) {
+    dart_buffer_t dst;
+    auto err = dart_buffer_take_bytes_err(&dst, bytes);
+    if (err) return dart_buffer_init();
+    else return dst;
+  }
+
+  dart_err_t dart_buffer_take_bytes_err(dart_buffer_t* dst, void* bytes) {
+    return dart_buffer_take_bytes_rc_err(dst, DART_RC_SAFE, bytes);
+  }
+
+  dart_buffer_t dart_buffer_take_bytes_rc(void* bytes, dart_rc_type_t rc) {
+    dart_buffer_t dst;
+    auto err = dart_buffer_take_bytes_rc_err(&dst, rc, bytes);
+    if (err) return dart_buffer_init();
+    else return dst;
+  }
+
+  dart_err_t dart_buffer_take_bytes_rc_err(dart_buffer_t* dst, dart_rc_type_t rc, void* bytes) {
+    using owner_type = std::unique_ptr<gsl::byte const[], void (*) (gsl::byte const*)>;
+
+    auto err = dart_buffer_init_rc_err(dst, rc);
+    if (err) return err;
+
+    // Assign to it.
+    auto del = [] (auto* ptr) { free(const_cast<gsl::byte*>(ptr)); };
+    owner_type owner {reinterpret_cast<gsl::byte const*>(bytes), del};
+    return err_handler([&] {
+      return buffer_unwrap(
+        compose(
+          [&] (dart::buffer& dst) { dst = dart::buffer {std::move(owner)}; },
+          [&] (dart::unsafe_buffer& dst) { dst = dart::unsafe_buffer {std::move(owner)}; }
+        ),
+        dst
+      );
+    });
+  }
+  
   dart_packet_t dart_init() {
     // Cannot meaningfully fail.
     dart_packet_t dst;
@@ -2994,6 +3162,20 @@ extern "C" {
     );
   }
 
+  bool dart_obj_has_key(void const* src, char const* key) {
+    return dart_obj_has_key_len(src, key, strlen(key));
+  }
+
+  bool dart_obj_has_key_len(void const* src, char const* key, size_t len) {
+    bool val = false;
+    auto err = generic_access(
+      [&val, key, len] (auto& src) { val = src.has_key(string_view {key, len}); },
+      src
+    );
+    if (err) return false;
+    else return val;
+  }
+
   dart_packet_t dart_obj_get(void const* src, char const* key) {
     dart_packet_t dst;
     auto err = dart_obj_get_err(&dst, src, key);
@@ -3220,6 +3402,168 @@ extern "C" {
     );
     if (ret) return nullptr;
     return outstr;
+  }
+
+  dart_packet_t dart_lower(void const* src) {
+    dart_packet_t dst;
+    auto err = dart_lower_err(&dst, src);
+    if (err) return dart_init();
+    else return dst;
+  }
+
+  dart_err_t dart_lower_err(dart_packet_t* dst, void const* src) {
+    dart_rc_propagate(dst, src);
+    dst->rtti.p_id = DART_PACKET;
+    return generic_access(
+      [=] (auto& src) {
+        auto tmp {src};
+        return generic_construct([&tmp] (auto* dst) { safe_construct(dst, std::move(tmp).lower()); }, dst);
+      },
+      src
+    );
+  }
+
+  dart_packet_t dart_lift(void const* src) {
+    dart_packet_t dst;
+    auto err = dart_lift_err(&dst, src);
+    if (err) return dart_init();
+    else return dst;
+  }
+
+  dart_err_t dart_lift_err(dart_packet_t* dst, void const* src) {
+    dart_rc_propagate(dst, src);
+    dst->rtti.p_id = DART_PACKET;
+    return generic_access(
+      [=] (auto& src) {
+        auto tmp {src};
+        return generic_construct([&tmp] (auto* dst) { safe_construct(dst, std::move(tmp).lift()); }, dst);
+      },
+      src
+    );
+  }
+
+  dart_packet_t dart_finalize(void const* src) {
+    return dart_lower(src);
+  }
+
+  dart_err_t dart_finalize_err(dart_packet_t* dst, void const* src) {
+    return dart_lower_err(dst, src);
+  }
+
+  dart_packet_t dart_definalize(void const* src) {
+    return dart_lift(src);
+  }
+
+  dart_err_t dart_definalize_err(dart_packet_t* dst, void const* src) {
+    return dart_lift_err(dst, src);
+  }
+
+  void const* dart_get_bytes(void const* src, size_t* len) {
+    void const* ptr = nullptr;
+    auto err = generic_access(
+      immutable_visitor(
+        [&ptr, len] (auto& src) {
+          auto bytes = src.get_bytes();
+          ptr = bytes.data();
+          if (len) *len = bytes.size();
+        }
+      ),
+      src
+    );
+    if (err) return nullptr;
+    else return ptr;
+  }
+
+  void* dart_dup_bytes(void const* src, size_t* len) {
+    void* ptr = nullptr;
+    auto err = generic_access(
+      immutable_visitor(
+        [&ptr, len] (auto& src) {
+          auto bytes = [&] {
+            if (len) return src.dup_bytes(*len);
+            else return src.dup_bytes();
+          }();
+
+          // FIXME: This is pretty not great, but it SHOULD be ok at the
+          // moment because the underlying buffer isn't ACTUALLY const.
+          // It's returned with a const pointer because it makes the type
+          // conversion logic for then passing that buffer into a packet
+          // constructor much simpler, but logically speaking the buffer
+          // is, and must be, mutable as it's owned by the client, and
+          // free doesn't take a const pointer.
+          // If you check the implementation of dart::buffer::dup_bytes
+          // you'll see that it also has to use a const_cast internally
+          // to be able to destroy the buffer.
+          ptr = const_cast<gsl::byte*>(bytes.release());
+        }
+      ),
+      src
+    );
+    if (err) return nullptr;
+    else return ptr;
+  }
+
+  dart_packet_t dart_from_bytes(void const* bytes, size_t len) {
+    dart_packet_t dst;
+    auto err = dart_from_bytes_err(&dst, bytes, len);
+    if (err) return dart_init();
+    else return dst;
+  }
+
+  dart_err_t dart_from_bytes_err(dart_packet_t* dst, void const* bytes, size_t len) {
+    return dart_from_bytes_rc_err(dst, DART_RC_SAFE, bytes, len);
+  }
+
+  dart_packet_t dart_from_bytes_rc(void const* bytes, dart_rc_type_t rc, size_t len) {
+    dart_packet_t dst;
+    auto err = dart_from_bytes_rc_err(&dst, rc, bytes, len);
+    if (err) return dart_init();
+    else return dst;
+  }
+
+  dart_err_t dart_from_bytes_rc_err(dart_packet_t* dst, dart_rc_type_t rc, void const* bytes, size_t len) {
+    auto* punned = reinterpret_cast<gsl::byte const*>(bytes);
+    return packet_typed_constructor_access(
+      [punned, len] (auto& dst) {
+        using packet_type = std::decay_t<decltype(dst)>;
+        dst = packet_type {gsl::make_span(punned, len)};
+      },
+      dst,
+      rc
+    );
+  }
+
+  dart_packet_t dart_take_bytes(void* bytes) {
+    dart_packet_t dst;
+    auto err = dart_take_bytes_err(&dst, bytes);
+    if (err) return dart_init();
+    else return dst;
+  }
+
+  dart_err_t dart_take_bytes_err(dart_packet_t* dst, void* bytes) {
+    return dart_take_bytes_rc_err(dst, DART_RC_SAFE, bytes);
+  }
+
+  dart_packet_t dart_take_bytes_rc(void* bytes, dart_rc_type_t rc) {
+    dart_packet_t dst;
+    auto err = dart_take_bytes_rc_err(&dst, rc, bytes);
+    if (err) return dart_init();
+    else return dst;
+  }
+
+  dart_err_t dart_take_bytes_rc_err(dart_packet_t* dst, dart_rc_type_t rc, void* bytes) {
+    using owner_type = std::unique_ptr<gsl::byte const[], void (*) (gsl::byte const*)>;
+
+    auto del = [] (auto* ptr) { free(const_cast<gsl::byte*>(ptr)); };
+    owner_type owner {reinterpret_cast<gsl::byte const*>(bytes), del};
+    return packet_typed_constructor_access(
+      [&] (auto& dst) {
+        using packet_type = std::decay_t<decltype(dst)>;
+        dst = packet_type {std::move(owner)};
+      },
+      dst,
+      rc
+    );
   }
 
   dart_err_t dart_iterator_init_err(dart_iterator_t* dst, void const* src) {
