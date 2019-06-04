@@ -1,5 +1,6 @@
 /*----- Local Includes -----*/
 
+#include <iostream>
 #include "../include/dart/abi.h"
 #include "../include/extern/catch.h"
 
@@ -92,6 +93,73 @@ SCENARIO("objects are regular types", "[abi unit]") {
         REQUIRE(dart_is_obj(&nested_copy));
         REQUIRE(dart_size(&nested_copy) == 1U);
         REQUIRE(dart_equal(&nested_copy, &nested));
+      }
+    }
+  }
+}
+
+SCENARIO("objects can be constructed with many values", "[abi unit]") {
+  GIVEN("many test cases to run") {
+    WHEN("an object is constructed with many values") {
+      auto* str = "runtime";
+      auto obj = dart_obj_init_va("Ssbdi", "Str", str, strlen(str),
+          "str", "string", "bool", true, "decimal", 2.99792, "integer", 1337);
+      auto guard = make_scope_guard([&] { dart_destroy(&obj); });
+
+      THEN("everything winds up where it's supposed to") {
+        auto sized_str = dart_obj_get(&obj, "Str");
+        auto str = dart_obj_get(&obj, "str");
+        auto boolean = dart_obj_get(&obj, "bool");
+        auto decimal = dart_obj_get(&obj, "decimal");
+        auto integer = dart_obj_get(&obj, "integer");
+        auto guard = make_scope_guard([&] {
+          dart_destroy(&integer);
+          dart_destroy(&decimal);
+          dart_destroy(&boolean);
+          dart_destroy(&str);
+          dart_destroy(&sized_str);
+        });
+
+        REQUIRE(dart_str_get(&sized_str) == "runtime"s);
+        REQUIRE(dart_str_get(&str) == "string"s);
+        REQUIRE(dart_bool_get(&boolean) == true);
+        REQUIRE(dart_dcm_get(&decimal) == 2.99792);
+        REQUIRE(dart_int_get(&integer) == 1337);
+      }
+    }
+
+    WHEN("an object is constructed with many nested objects") {
+      auto* str = "runtime";
+      auto obj = dart_obj_init_va("Soos,i,as", "str", str, strlen(str),
+          "nested", "double_nested", "double_nested_str", "deep", "integer", 10, "arr", "last");
+      THEN("everything winds up where it's supposed to") {
+        auto str = dart_obj_get(&obj, "str");
+        auto nested = dart_obj_get(&obj, "nested");
+        auto double_nested = dart_obj_get(&nested, "double_nested");
+        auto double_nested_str = dart_obj_get(&double_nested, "double_nested_str");
+        auto integer = dart_obj_get(&nested, "integer");
+        auto arr = dart_obj_get(&obj, "arr");
+        auto last = dart_arr_get(&arr, 0);
+        auto guard = make_scope_guard([&] {
+          dart_destroy(&last);
+          dart_destroy(&arr);
+          dart_destroy(&integer);
+          dart_destroy(&double_nested_str);
+          dart_destroy(&double_nested);
+          dart_destroy(&nested);
+          dart_destroy(&str);
+        });
+
+        REQUIRE(dart_str_get(&str) == "runtime"s);
+        REQUIRE(dart_is_obj(&nested));
+        REQUIRE(dart_size(&nested) == 2U);
+        REQUIRE(dart_is_obj(&double_nested));
+        REQUIRE(dart_size(&double_nested) == 1U);
+        REQUIRE(dart_str_get(&double_nested_str) == "deep"s);
+        REQUIRE(dart_int_get(&integer) == 10);
+        REQUIRE(dart_is_arr(&arr));
+        REQUIRE(dart_size(&arr) == 1U);
+        REQUIRE(dart_str_get(&last) == "last"s);
       }
     }
   }

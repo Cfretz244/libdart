@@ -653,6 +653,7 @@ namespace {
     while (*format && *format != ',') {
       pkt.push_back(parse_val<Packet>(format, args));
     }
+    if (*format == ',') format++;
   }
 
   template <class Packet, class VaList>
@@ -665,6 +666,7 @@ namespace {
       auto key = Packet::make_string(va_arg(args, char const*));
       pkt.add_field(std::move(key), parse_val<Packet>(format, args));
     }
+    if (*format == ',') format++;
   }
 
 }
