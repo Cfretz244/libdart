@@ -371,10 +371,9 @@ namespace dart {
 
   template <template <class> class RefCount>
   struct view_ptr_context {
+
     template <class T>
     class view_ptr {
-
-      static_assert(std::is_const<T>::value, "dart::view_ptr can only be used with constant types");
 
       public:
 
@@ -439,6 +438,7 @@ namespace dart {
         refcount_type const* impl;
 
     };
+
   };
 
   template <class T>
@@ -472,6 +472,30 @@ namespace dart {
 
   template <class T, class... Args>
   std::enable_if_t<!std::is_array<T>::value, skinny_ptr<T>> make_skinny(Args&&... the_args);
+
+  namespace refcount {
+
+    namespace detail {
+      template <class T>
+      using nonowning_t = typename T::is_nonowning;
+    }
+
+    template <class T>
+    struct is_owner : meta::negation<meta::is_detected<detail::nonowning_t, T>> {};
+
+    template <template <class> class RefCount>
+    struct owner_for {
+      template <class T>
+      using rebinder = typename RefCount<T>::template refcount_rebind<typename RefCount<T>::element_type>;
+
+      using eval = meta::higher_conditional<
+        is_owner<RefCount<gsl::byte>>::value,
+        RefCount,
+        rebinder
+      >;
+    };
+
+  }
 
 }
 
