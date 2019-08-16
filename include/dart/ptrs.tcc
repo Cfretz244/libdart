@@ -433,6 +433,150 @@ namespace dart {
     return ptr;
   }
 
+  template <template <class> class RefCount>
+  template <class T>
+  view_ptr_context<RefCount>::view_ptr<T>::view_ptr(T*) {
+    throw std::logic_error("dart::view_ptr cannot be passed an owning raw pointer");
+  }
+
+  template <template <class> class RefCount>
+  template <class T>
+  template <class Del>
+  view_ptr_context<RefCount>::view_ptr<T>::view_ptr(T*, Del&&) {
+    throw std::logic_error("dart::view_ptr cannot be passed an owning raw pointer");
+  }
+
+  template <template <class> class RefCount>
+  template <class T>
+  view_ptr_context<RefCount>::view_ptr<T>::view_ptr(view_ptr&& other) noexcept : impl(other.impl) {
+    // XXX: I don't know if this is the right call or not, since view_ptr doesn't generally have
+    // memory ownership semantics, but I figure it's the least surprising thing.
+    other.impl = nullptr;
+  }
+
+  template <template <class> class RefCount>
+  template <class T>
+  auto view_ptr_context<RefCount>::view_ptr<T>::operator =(refcount_type const& owner) noexcept -> view_ptr& {
+    if (impl == &owner) return *this;
+    this->~view_ptr();
+    new(this) view_ptr(owner);
+    return *this;
+  }
+
+  template <template <class> class RefCount>
+  template <class T>
+  auto view_ptr_context<RefCount>::view_ptr<T>::operator =(view_ptr&& other) noexcept -> view_ptr& {
+    if (this == &other) return *this;
+    this->~view_ptr();
+    new(this) view_ptr(std::move(other));
+    return *this;
+  }
+
+  template <template <class> class RefCount>
+  template <class T>
+  auto view_ptr_context<RefCount>::view_ptr<T>::operator *() const
+    noexcept(refcount_traits<refcount_type>::is_nothrow_unwrappable::value)
+    -> element_type&
+  {
+    return *get();
+  }
+
+  template <template <class> class RefCount>
+  template <class T>
+  auto view_ptr_context<RefCount>::view_ptr<T>::operator ->() const
+    noexcept(refcount_traits<refcount_type>::is_nothrow_unwrappable::value)
+    -> element_type*
+  {
+    return get();
+  }
+
+  template <template <class> class RefCount>
+  template <class T>
+  bool view_ptr_context<RefCount>::view_ptr<T>::operator ==(view_ptr const& other) const
+    noexcept(refcount_traits<refcount_type>::is_nothrow_unwrappable::value)
+  {
+    return get() == other.get();
+  }
+
+  template <template <class> class RefCount>
+  template <class T>
+  bool view_ptr_context<RefCount>::view_ptr<T>::operator !=(view_ptr const& other) const
+    noexcept(refcount_traits<refcount_type>::is_nothrow_unwrappable::value)
+  {
+    return !(*this == other);
+  }
+
+  template <template <class> class RefCount>
+  template <class T>
+  bool view_ptr_context<RefCount>::view_ptr<T>::operator <(view_ptr const& other) const
+    noexcept(refcount_traits<refcount_type>::is_nothrow_unwrappable::value)
+  {
+    return get() < other.get();
+  }
+
+  template <template <class> class RefCount>
+  template <class T>
+  bool view_ptr_context<RefCount>::view_ptr<T>::operator <=(view_ptr const& other) const
+    noexcept(refcount_traits<refcount_type>::is_nothrow_unwrappable::value)
+  {
+    return !(other < *this);
+  }
+
+  template <template <class> class RefCount>
+  template <class T>
+  bool view_ptr_context<RefCount>::view_ptr<T>::operator >(view_ptr const& other) const
+    noexcept(refcount_traits<refcount_type>::is_nothrow_unwrappable::value)
+  {
+    return other < *this;
+  }
+
+  template <template <class> class RefCount>
+  template <class T>
+  bool view_ptr_context<RefCount>::view_ptr<T>::operator >=(view_ptr const& other) const
+    noexcept(refcount_traits<refcount_type>::is_nothrow_unwrappable::value)
+  {
+    return !(*this < other);
+  }
+
+  template <template <class> class RefCount>
+  template <class T>
+  view_ptr_context<RefCount>::view_ptr<T>::operator bool() const
+    noexcept(refcount_traits<refcount_type>::is_nothrow_unwrappable::value)
+  {
+    return get() != nullptr;
+  }
+
+  template <template <class> class RefCount>
+  template <class T>
+  auto view_ptr_context<RefCount>::view_ptr<T>::get() const
+    noexcept(refcount_traits<refcount_type>::is_nothrow_unwrappable::value)
+    -> element_type*
+  {
+    if (impl) return impl->get();
+    else return nullptr;
+  }
+
+  template <template <class> class RefCount>
+  template <class T>
+  size_t view_ptr_context<RefCount>::view_ptr<T>::use_count() const
+    noexcept(refcount_traits<refcount_type>::has_nothrow_use_count::value)
+  {
+    // XXX: view_ptr doesn't have any memory ownership semantics, and so layers
+    // above it should assume it always has at least one unless it's in the null state
+    if (impl) {
+      auto count = impl->use_count();
+      return count ? count : 1;
+    } else {
+      return 0;
+    }
+  }
+
+  template <template <class> class RefCount>
+  template <class T>
+  void view_ptr_context<RefCount>::view_ptr<T>::reset() noexcept {
+    impl = nullptr;
+  }
+
   template <class T, class>
   unsafe_ptr<T> make_unsafe(size_t idx) {
     return unsafe_ptr<T>(new std::remove_extent_t<T>[idx]);

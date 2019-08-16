@@ -369,6 +369,78 @@ namespace dart {
 
   };
 
+  template <template <class> class RefCount>
+  struct view_ptr_context {
+    template <class T>
+    class view_ptr {
+
+      static_assert(std::is_const<T>::value, "dart::view_ptr can only be used with constant types");
+
+      public:
+
+        /*----- Public Types -----*/
+
+        using refcount_type = RefCount<T>;
+        using is_nonowning = refcount_type;
+        using element_type = typename refcount_traits<refcount_type>::element_type;
+
+        template <class U>
+        using refcount_rebind = RefCount<U>;
+
+        /*----- Lifecycle Functions -----*/
+
+        // Functions must exist for refcount concept, but will throw if called
+        // as view_ptr doesn't have ownership semantics
+        explicit view_ptr(T*);
+        template <class Del>
+        explicit view_ptr(T*, Del&&);
+        
+        // I'm not currently disallowing construction from temporaries
+        // I can imagine scenarios where it could be useful, and generally,
+        // you'll need to know what you're doing to work with the view types
+        view_ptr(refcount_type const& owner) noexcept : impl(&owner) {}
+
+        // Lifecycle functions mostly do nothing
+        view_ptr() : impl(nullptr) {}
+        view_ptr(view_ptr const&) = default;
+        view_ptr(view_ptr&& other) noexcept;
+        ~view_ptr() = default;
+
+        /*----- Operators -----*/
+
+        auto operator =(refcount_type const& owner) noexcept -> view_ptr&;
+
+        auto operator =(view_ptr const&) -> view_ptr& = default;
+        auto operator =(view_ptr&& other) noexcept -> view_ptr&;
+
+        auto operator *() const noexcept(refcount_traits<refcount_type>::is_nothrow_unwrappable::value) -> element_type&;
+        auto operator ->() const noexcept(refcount_traits<refcount_type>::is_nothrow_unwrappable::value) -> element_type*;
+
+        bool operator ==(view_ptr const& other) const noexcept(refcount_traits<refcount_type>::is_nothrow_unwrappable::value);
+        bool operator !=(view_ptr const& other) const noexcept(refcount_traits<refcount_type>::is_nothrow_unwrappable::value);
+        bool operator <(view_ptr const& other) const noexcept(refcount_traits<refcount_type>::is_nothrow_unwrappable::value);
+        bool operator <=(view_ptr const& other) const noexcept(refcount_traits<refcount_type>::is_nothrow_unwrappable::value);
+        bool operator >(view_ptr const& other) const noexcept(refcount_traits<refcount_type>::is_nothrow_unwrappable::value);
+        bool operator >=(view_ptr const& other) const noexcept(refcount_traits<refcount_type>::is_nothrow_unwrappable::value);
+
+        explicit operator bool() const noexcept(refcount_traits<refcount_type>::is_nothrow_unwrappable::value);
+
+        /*----- Public API -----*/
+
+        auto get() const noexcept(refcount_traits<refcount_type>::is_nothrow_unwrappable::value) -> element_type*;
+        size_t use_count() const noexcept(refcount_traits<refcount_type>::has_nothrow_use_count::value);
+
+        void reset() noexcept;
+
+      private:
+
+        /*----- Private Members -----*/
+
+        refcount_type const* impl;
+
+    };
+  };
+
   template <class T>
   using unsafe_ptr = std::conditional_t<
     std::is_same<
