@@ -536,19 +536,16 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
-  template <template <class> class, class>
   basic_heap<RefCount> basic_heap<RefCount>::make_null() noexcept {
     return basic_heap(detail::null_tag {});
   }
 
   template <template <class> class RefCount>
-  template <template <class> class, class>
   basic_buffer<RefCount> basic_buffer<RefCount>::make_null() noexcept {
     return basic_buffer {};
   }
 
   template <template <class> class RefCount>
-  template <template <class> class, class>
   basic_packet<RefCount> basic_packet<RefCount>::make_null() noexcept {
     return basic_heap<RefCount>::make_null();
   }

@@ -4846,11 +4846,6 @@ namespace dart {
        *  Null factory function.
        *  Returns a null packet.
        */
-      template <template <class> class RC = RefCount, class =
-        std::enable_if_t<
-          refcount::is_owner<RC>::value
-        >
-      >
       static basic_heap make_null() noexcept;
 
       /*----- Aggregate Builder Functions -----*/
@@ -7580,11 +7575,6 @@ namespace dart {
        *  Null factory function.
        *  Returns a null packet.
        */
-      template <template <class> class RC = RefCount, class =
-        std::enable_if_t<
-          refcount::is_owner<RC>::value
-        >
-      >
       static basic_buffer make_null() noexcept;
 
       /*----- Aggregate Builder Functions -----*/
@@ -9359,11 +9349,6 @@ namespace dart {
        *  Constructor will not allocate memory, and cannot fail, so it is
        *  allowed implicitly.
        */
-      template <template <class> class RC = RefCount, class =
-        std::enable_if_t<
-          refcount::is_owner<RC>::value
-        >
-      >
       basic_packet(basic_heap<RefCount> impl) noexcept : impl(std::move(impl)) {}
 
       /**
@@ -9375,11 +9360,6 @@ namespace dart {
        *  Constructor will not allocate memory, and cannot fail, so it is
        *  allowed implicitly.
        */
-      template <template <class> class RC = RefCount, class =
-        std::enable_if_t<
-          refcount::is_owner<RC>::value
-        >
-      >
       basic_packet(basic_buffer<RefCount> impl) noexcept : impl(std::move(impl)) {}
 
       /**
@@ -10018,11 +9998,6 @@ namespace dart {
        *  Null factory function.
        *  Returns a null packet.
        */
-      template <template <class> class RC = RefCount, class =
-        std::enable_if_t<
-          refcount::is_owner<RC>::value
-        >
-      >
       static basic_packet make_null() noexcept;
 
       /*----- Aggregate Builder Functions -----*/
