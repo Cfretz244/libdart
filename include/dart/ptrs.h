@@ -497,13 +497,13 @@ namespace dart {
       };
     }
 
-    template <class T>
-    struct is_owner : meta::negation<meta::is_detected<detail::nonowning_t, T>> {};
+    template <template <class> class Owner>
+    struct is_owner : meta::negation<meta::is_detected<detail::nonowning_t, Owner<gsl::byte>>> {};
 
     template <template <template <class> class> class Tmp, template <class> class RefCount>
     struct owner_indirection {
       using type = typename detail::owner_indirection_impl<
-        is_owner<RefCount<gsl::byte>>::value,
+        is_owner<RefCount>::value,
         Tmp,
         RefCount
       >::type;

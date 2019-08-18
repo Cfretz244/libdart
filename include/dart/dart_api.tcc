@@ -40,6 +40,7 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
+  template <template <class> class, class>
   basic_buffer<RefCount>::basic_buffer(basic_heap<RefCount> const& heap) {
     if (!heap.is_object()) {
       throw type_error("dart::buffer can only be constructed from an object heap");
@@ -401,8 +402,7 @@ namespace dart {
   template <template <class> class RefCount>
   basic_packet<RefCount>::operator view() const& noexcept {
     return shim::visit([] (auto& impl) -> view {
-      using view_impl = typename std::decay_t<decltype(impl)>::view;
-      return view_impl {impl};
+      return typename std::decay_t<decltype(impl)>::view {impl};
     }, impl);
   }
 
@@ -536,16 +536,19 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
+  template <template <class> class, class>
   basic_heap<RefCount> basic_heap<RefCount>::make_null() noexcept {
     return basic_heap(detail::null_tag {});
   }
 
   template <template <class> class RefCount>
+  template <template <class> class, class>
   basic_buffer<RefCount> basic_buffer<RefCount>::make_null() noexcept {
     return basic_buffer {};
   }
 
   template <template <class> class RefCount>
+  template <template <class> class, class>
   basic_packet<RefCount> basic_packet<RefCount>::make_null() noexcept {
     return basic_heap<RefCount>::make_null();
   }
@@ -707,6 +710,7 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
+  template <template <class> class, class>
   auto basic_heap<RefCount>::erase(iterator pos) -> iterator {
     // Dig all the way down and get the underlying iterator layout.
     using fields_layout = typename detail::dynamic_iterator<RefCount>::fields_layout;
@@ -730,6 +734,7 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
+  template <template <class> class, class>
   auto basic_packet<RefCount>::erase(iterator pos) -> iterator {
     if (!pos) throw std::invalid_argument("dart::packet cannot erase from a valueless iterator");
     auto* it = shim::get_if<typename basic_heap<RefCount>::iterator>(&pos.impl);
@@ -738,6 +743,7 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
+  template <template <class> class, class>
   void basic_heap<RefCount>::clear() {
     if (is_object()) get_fields().clear();
     else if (is_array()) get_elements().clear();
@@ -745,6 +751,7 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
+  template <template <class> class, class>
   void basic_packet<RefCount>::clear() {
     get_heap().clear();
   }
@@ -760,37 +767,44 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
+  template <template <class> class, class>
   basic_heap<RefCount>& basic_heap<RefCount>::definalize() & {
     return *this;
   }
 
   template <template <class> class RefCount>
+  template <template <class> class, class>
   basic_heap<RefCount> const& basic_heap<RefCount>::definalize() const& {
     return *this;
   }
 
   template <template <class> class RefCount>
+  template <template <class> class, class>
   basic_heap<RefCount>&& basic_heap<RefCount>::definalize() && {
     return std::move(*this);
   }
 
   template <template <class> class RefCount>
+  template <template <class> class, class>
   basic_heap<RefCount> const&& basic_heap<RefCount>::definalize() const&& {
     return std::move(*this);
   }
 
   template <template <class> class RefCount>
+  template <template <class> class, class>
   basic_heap<RefCount> basic_buffer<RefCount>::definalize() const {
     return basic_heap<RefCount> {*this};
   }
 
   template <template <class> class RefCount>
+  template <template <class> class, class>
   basic_packet<RefCount>& basic_packet<RefCount>::definalize() & {
     if (is_finalized()) impl = basic_heap<RefCount> {shim::get<basic_buffer<RefCount>>(impl)};
     return *this;
   }
 
   template <template <class> class RefCount>
+  template <template <class> class, class>
   basic_packet<RefCount>&& basic_packet<RefCount>::definalize() && {
     definalize();
     return std::move(*this);
@@ -807,36 +821,43 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
+  template <template <class> class, class>
   basic_heap<RefCount>& basic_heap<RefCount>::lift() & {
     return definalize();
   }
 
   template <template <class> class RefCount>
+  template <template <class> class, class>
   basic_heap<RefCount> const& basic_heap<RefCount>::lift() const& {
     return definalize();
   }
 
   template <template <class> class RefCount>
+  template <template <class> class, class>
   basic_heap<RefCount>&& basic_heap<RefCount>::lift() && {
     return std::move(*this).definalize();
   }
 
   template <template <class> class RefCount>
+  template <template <class> class, class>
   basic_heap<RefCount> const&& basic_heap<RefCount>::lift() const&& {
     return std::move(*this).definalize();
   }
 
   template <template <class> class RefCount>
+  template <template <class> class, class>
   basic_heap<RefCount> basic_buffer<RefCount>::lift() const {
     return definalize();
   }
 
   template <template <class> class RefCount>
+  template <template <class> class, class>
   basic_packet<RefCount>& basic_packet<RefCount>::lift() & {
     return definalize();
   }
 
   template <template <class> class RefCount>
+  template <template <class> class, class>
   basic_packet<RefCount>&& basic_packet<RefCount>::lift() && {
     return std::move(*this).definalize();
   }
@@ -852,37 +873,44 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
+  template <template <class> class, class>
   basic_buffer<RefCount> basic_heap<RefCount>::finalize() const {
     return basic_buffer<RefCount> {*this};
   }
 
   template <template <class> class RefCount>
+  template <template <class> class, class>
   basic_buffer<RefCount>& basic_buffer<RefCount>::finalize() & {
     return *this;
   }
 
   template <template <class> class RefCount>
+  template <template <class> class, class>
   basic_buffer<RefCount> const& basic_buffer<RefCount>::finalize() const& {
     return *this;
   }
 
   template <template <class> class RefCount>
+  template <template <class> class, class>
   basic_buffer<RefCount>&& basic_buffer<RefCount>::finalize() && {
     return std::move(*this);
   }
 
   template <template <class> class RefCount>
+  template <template <class> class, class>
   basic_buffer<RefCount> const&& basic_buffer<RefCount>::finalize() const&& {
     return std::move(*this);
   }
 
   template <template <class> class RefCount>
+  template <template <class> class, class>
   basic_packet<RefCount>& basic_packet<RefCount>::finalize() & {
     if (!is_finalized()) impl = basic_buffer<RefCount> {shim::get<basic_heap<RefCount>>(impl)};
     return *this;
   }
 
   template <template <class> class RefCount>
+  template <template <class> class, class>
   basic_packet<RefCount>&& basic_packet<RefCount>::finalize() && {
     finalize();
     return std::move(*this);
@@ -899,36 +927,43 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
+  template <template <class> class, class>
   basic_buffer<RefCount> basic_heap<RefCount>::lower() const {
     return finalize();
   }
 
   template <template <class> class RefCount>
+  template <template <class> class, class>
   basic_buffer<RefCount>& basic_buffer<RefCount>::lower() & {
     return finalize();
   }
 
   template <template <class> class RefCount>
+  template <template <class> class, class>
   basic_buffer<RefCount> const& basic_buffer<RefCount>::lower() const& {
     return finalize();
   }
 
   template <template <class> class RefCount>
+  template <template <class> class, class>
   basic_buffer<RefCount>&& basic_buffer<RefCount>::lower() && {
     return std::move(*this).finalize();
   }
 
   template <template <class> class RefCount>
+  template <template <class> class, class>
   basic_buffer<RefCount> const&& basic_buffer<RefCount>::lower() const&& {
     return std::move(*this).finalize();
   }
 
   template <template <class> class RefCount>
+  template <template <class> class, class>
   basic_packet<RefCount>& basic_packet<RefCount>::lower() & {
     return finalize();
   }
 
   template <template <class> class RefCount>
+  template <template <class> class, class>
   basic_packet<RefCount>&& basic_packet<RefCount>::lower() && {
     return std::move(*this).finalize();
   }

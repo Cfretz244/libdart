@@ -164,38 +164,37 @@ namespace dart {
   template <template <class> class RefCount>
   template <class TypeData>
   basic_heap<RefCount>::basic_heap(detail::view_tag, TypeData const& parent) {
-    switch (parent.index()) {
-      case 0:
-        data = std::get<0>(parent);
-        break;
-      case 1:
-        data = fields_rc_type {std::get<1>(parent).raw()};
-        break;
-      case 2:
-        data = elements_rc_type {std::get<2>(parent).raw()};
-        break;
-      case 3:
-        {
-          auto& str = std::get<3>(parent);
+    // XXX: This is pretty not great, but the the first four need special treatment,
+    // and it's not straightforward to compute what their types will be.
+    // At the very least, this approach will generate compilation errors if more
+    // types are added, and will likely cause errors if they're re-arranged unexpectedly
+    shim::visit(
+      shim::compose_together(
+        [] (shim::monostate) {},
+        [this] (std::variant_alternative_t<1, TypeData> const& fields) {
+          data = fields_rc_type {fields.raw()};
+        },
+        [this] (std::variant_alternative_t<2, TypeData> const& elems) {
+          data = elements_rc_type {elems.raw()};
+        },
+        [this] (std::variant_alternative_t<3, TypeData> const& str) {
           data = dynamic_string_layout {str.ptr, str.len};
-          break;
-        }
-      case 4:
-        {
-          auto& str = std::get<4>(parent);
+        },
+        [this] (std::variant_alternative_t<4, TypeData> const& str) {
           data = inline_string_layout {str.buffer, str.left};
-          break;
+        },
+        [this] (std::variant_alternative_t<5, TypeData> const& num) {
+          data = num;
+        },
+        [this] (std::variant_alternative_t<6, TypeData> const& num) {
+          data = num;
+        },
+        [this] (std::variant_alternative_t<7, TypeData> const& flag) {
+          data = flag;
         }
-      case 5:
-        data = std::get<5>(parent);
-        break;
-      case 6:
-        data = std::get<6>(parent);
-        break;
-      case 7:
-        data = std::get<7>(parent);
-        break;
-    }
+      ),
+      parent
+    );
   }
 
   template <template <class> class RefCount>

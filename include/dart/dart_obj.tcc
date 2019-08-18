@@ -119,6 +119,7 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
+  template <template <class> class, class>
   basic_heap<RefCount> basic_heap<RefCount>::make_object(gsl::span<basic_heap const> pairs) {
     auto obj = basic_heap(detail::object_tag {});
     inject_pairs<false>(obj, pairs);
@@ -126,16 +127,19 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
+  template <template <class> class, class>
   basic_buffer<RefCount> basic_buffer<RefCount>::make_object(gsl::span<basic_heap<RefCount> const> pairs) {
     return dynamic_make_object(pairs);
   }
 
   template <template <class> class RefCount>
+  template <template <class> class, class>
   basic_packet<RefCount> basic_packet<RefCount>::make_object(gsl::span<basic_heap<RefCount> const> pairs) {
     return basic_heap<RefCount>::make_object(pairs);
   }
 
   template <template <class> class RefCount>
+  template <template <class> class, class>
   basic_heap<RefCount> basic_heap<RefCount>::make_object(gsl::span<basic_buffer<RefCount> const> pairs) {
     auto obj = basic_heap(detail::object_tag {});
     inject_pairs<false>(obj, pairs);
@@ -143,16 +147,19 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
+  template <template <class> class, class>
   basic_buffer<RefCount> basic_buffer<RefCount>::make_object(gsl::span<basic_buffer const> pairs) {
     return dynamic_make_object(pairs);
   }
 
   template <template <class> class RefCount>
+  template <template <class> class, class>
   basic_packet<RefCount> basic_packet<RefCount>::make_object(gsl::span<basic_buffer<RefCount> const> pairs) {
     return basic_heap<RefCount>::make_object(pairs);
   }
 
   template <template <class> class RefCount>
+  template <template <class> class, class>
   basic_heap<RefCount> basic_heap<RefCount>::make_object(gsl::span<basic_packet<RefCount> const> pairs) {
     auto obj = basic_heap(detail::object_tag {});
     inject_pairs<false>(obj, pairs);
@@ -160,11 +167,13 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
+  template <template <class> class, class>
   basic_buffer<RefCount> basic_buffer<RefCount>::make_object(gsl::span<basic_packet<RefCount> const> pairs) {
     return dynamic_make_object(pairs);
   }
 
   template <template <class> class RefCount>
+  template <template <class> class, class>
   basic_packet<RefCount> basic_packet<RefCount>::make_object(gsl::span<basic_packet const> pairs) {
     return basic_heap<RefCount>::make_object(pairs);
   }
@@ -213,24 +222,28 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
+  template <template <class> class, class>
   basic_heap<RefCount>& basic_heap<RefCount>::remove_field(shim::string_view key) & {
     erase(key);
     return *this;
   }
 
   template <template <class> class RefCount>
+  template <template <class> class, class>
   basic_packet<RefCount>& basic_packet<RefCount>::remove_field(shim::string_view key) & {
     erase(key);
     return *this;
   }
 
   template <template <class> class RefCount>
+  template <template <class> class, class>
   basic_heap<RefCount>&& basic_heap<RefCount>::remove_field(shim::string_view key) && {
     remove_field(key);
     return std::move(*this);
   }
 
   template <template <class> class RefCount>
+  template <template <class> class, class>
   basic_packet<RefCount>&& basic_packet<RefCount>::remove_field(shim::string_view key) && {
     remove_field(key);
     return std::move(*this);
@@ -298,23 +311,25 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
-  template <class String>
+  template <class String, template <class> class, class>
   auto basic_heap<RefCount>::erase(basic_string<String> const& key) -> iterator {
     return erase(key.strv());
   }
 
   template <template <class> class RefCount>
-  template <class String>
+  template <class String, template <class> class, class>
   auto basic_packet<RefCount>::erase(basic_string<String> const& key) -> iterator {
     return erase(key.strv());
   }
 
   template <template <class> class RefCount>
+  template <template <class> class, class>
   auto basic_heap<RefCount>::erase(shim::string_view key) -> iterator {
     return erase_key_impl(key, [] (auto& it) -> auto const& { return it->second; }, nullptr);
   }
 
   template <template <class> class RefCount>
+  template <template <class> class, class>
   auto basic_packet<RefCount>::erase(shim::string_view key) -> iterator {
     return get_heap().erase(key);
   }
@@ -361,6 +376,7 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
+  template <template <class> class, class>
   basic_heap<RefCount> basic_heap<RefCount>::inject(gsl::span<basic_heap const> pairs) const {
     auto obj {*this};
     inject_pairs<false>(obj, pairs);
@@ -368,16 +384,19 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
+  template <template <class> class, class>
   basic_buffer<RefCount> basic_buffer<RefCount>::inject(gsl::span<basic_heap<RefCount> const> pairs) const {
     return detail::buffer_builder<RefCount>::merge_buffers(*this, make_object(pairs));
   }
 
   template <template <class> class RefCount>
+  template <template <class> class, class>
   basic_packet<RefCount> basic_packet<RefCount>::inject(gsl::span<basic_heap<RefCount> const> pairs) const {
     return shim::visit([&] (auto& v) -> basic_packet { return v.inject(pairs); }, impl);
   }
 
   template <template <class> class RefCount>
+  template <template <class> class, class>
   basic_heap<RefCount> basic_heap<RefCount>::inject(gsl::span<basic_buffer<RefCount> const> pairs) const {
     auto obj {*this};
     inject_pairs<false>(obj, pairs);
@@ -385,16 +404,19 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
+  template <template <class> class, class>
   basic_buffer<RefCount> basic_buffer<RefCount>::inject(gsl::span<basic_buffer const> pairs) const {
     return detail::buffer_builder<RefCount>::merge_buffers(*this, make_object(pairs));
   }
 
   template <template <class> class RefCount>
+  template <template <class> class, class>
   basic_packet<RefCount> basic_packet<RefCount>::inject(gsl::span<basic_buffer<RefCount> const> pairs) const {
     return shim::visit([&] (auto& v) -> basic_packet { return v.inject(pairs); }, impl);
   }
 
   template <template <class> class RefCount>
+  template <template <class> class, class>
   basic_heap<RefCount> basic_heap<RefCount>::inject(gsl::span<basic_packet<RefCount> const> pairs) const {
     auto obj {*this};
     inject_pairs<false>(obj, pairs);
@@ -402,11 +424,13 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
+  template <template <class> class, class>
   basic_buffer<RefCount> basic_buffer<RefCount>::inject(gsl::span<basic_packet<RefCount> const> pairs) const {
     return detail::buffer_builder<RefCount>::merge_buffers(*this, make_object(pairs));
   }
 
   template <template <class> class RefCount>
+  template <template <class> class, class>
   basic_packet<RefCount> basic_packet<RefCount>::inject(gsl::span<basic_packet const> pairs) const {
     return shim::visit([&] (auto& v) -> basic_packet { return v.inject(pairs); }, impl);
   }
@@ -423,46 +447,55 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
+  template <template <class> class, class>
   basic_heap<RefCount> basic_heap<RefCount>::project(std::initializer_list<shim::string_view> keys) const {
     return project_keys(keys);
   }
 
   template <template <class> class RefCount>
+  template <template <class> class, class>
   basic_buffer<RefCount> basic_buffer<RefCount>::project(std::initializer_list<shim::string_view> keys) const {
     return detail::buffer_builder<RefCount>::project_keys(*this, keys);
   }
 
   template <template <class> class RefCount>
+  template <template <class> class, class>
   basic_packet<RefCount> basic_packet<RefCount>::project(std::initializer_list<shim::string_view> keys) const {
     return shim::visit([&] (auto& v) -> basic_packet { return v.project(keys); }, impl);
   }
 
   template <template <class> class RefCount>
+  template <template <class> class, class>
   basic_heap<RefCount> basic_heap<RefCount>::project(gsl::span<std::string const> keys) const {
     return project_keys(keys);
   }
 
   template <template <class> class RefCount>
+  template <template <class> class, class>
   basic_buffer<RefCount> basic_buffer<RefCount>::project(gsl::span<std::string const> keys) const {
     return detail::buffer_builder<RefCount>::project_keys(*this, keys);
   }
 
   template <template <class> class RefCount>
+  template <template <class> class, class>
   basic_packet<RefCount> basic_packet<RefCount>::project(gsl::span<std::string const> keys) const {
     return shim::visit([&] (auto& v) -> basic_packet { return v.project(keys); }, impl);
   }
 
   template <template <class> class RefCount>
+  template <template <class> class, class>
   basic_heap<RefCount> basic_heap<RefCount>::project(gsl::span<shim::string_view const> keys) const {
     return project_keys(keys);
   }
 
   template <template <class> class RefCount>
+  template <template <class> class, class>
   basic_buffer<RefCount> basic_buffer<RefCount>::project(gsl::span<shim::string_view const> keys) const {
     return detail::buffer_builder<RefCount>::project_keys(*this, keys);
   }
 
   template <template <class> class RefCount>
+  template <template <class> class, class>
   basic_packet<RefCount> basic_packet<RefCount>::project(gsl::span<shim::string_view const> keys) const {
     return shim::visit([&] (auto& v) -> basic_packet { return v.project(keys); }, impl);
   }
@@ -498,13 +531,13 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
-  template <class String>
+  template <class String, template <class> class, class>
   basic_buffer<RefCount>&& basic_buffer<RefCount>::operator [](basic_string<String> const& key) && {
     return std::move(*this)[key.strv()];
   }
 
   template <template <class> class RefCount>
-  template <class String>
+  template <class String, template <class> class, class>
   basic_packet<RefCount>&& basic_packet<RefCount>::operator [](basic_string<String> const& key) && {
     return std::move(*this)[key.strv()];
   }
@@ -525,11 +558,13 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
+  template <template <class> class, class>
   basic_buffer<RefCount>&& basic_buffer<RefCount>::operator [](shim::string_view key) && {
     return std::move(*this).get(key);
   }
 
   template <template <class> class RefCount>
+  template <template <class> class, class>
   basic_packet<RefCount>&& basic_packet<RefCount>::operator [](shim::string_view key) && {
     return std::move(*this).get(key);
   }
@@ -559,7 +594,7 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
-  template <class String>
+  template <class String, template <class> class, class>
   basic_buffer<RefCount>&& basic_buffer<RefCount>::get(basic_string<String> const& key) && {
     return std::move(*this).get(key.strv());
   }
@@ -571,7 +606,7 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
-  template <class String>
+  template <class String, template <class> class, class>
   basic_packet<RefCount>&& basic_packet<RefCount>::get(basic_string<String> const& key) && {
     return std::move(*this).get(key.strv());
   }
@@ -597,6 +632,7 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
+  template <template <class> class, class>
   basic_buffer<RefCount>&& basic_buffer<RefCount>::get(shim::string_view key) && {
     raw = detail::get_object<RefCount>(raw)->get_value(key);
     if (is_null()) buffer_ref = nullptr;
@@ -604,6 +640,7 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
+  template <template <class> class, class>
   basic_packet<RefCount>&& basic_packet<RefCount>::get(shim::string_view key) && {
     shim::visit([&] (auto& v) { v = std::move(v).get(key); }, impl);
     return std::move(*this);
@@ -686,7 +723,7 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
-  template <class String>
+  template <class String, template <class> class, class>
   basic_buffer<RefCount>&& basic_buffer<RefCount>::at(basic_string<String> const& key) && {
     return std::move(*this).at(key.strv());
   }
@@ -698,7 +735,7 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
-  template <class String>
+  template <class String, template <class> class, class>
   basic_packet<RefCount>&& basic_packet<RefCount>::at(basic_string<String> const& key) && {
     return std::move(*this).at(key.strv());
   }
@@ -724,6 +761,7 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
+  template <template <class> class, class>
   basic_buffer<RefCount>&& basic_buffer<RefCount>::at(shim::string_view key) && {
     raw = detail::get_object<RefCount>(raw)->at_value(key);
     if (is_null()) buffer_ref = nullptr;
@@ -731,6 +769,7 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
+  template <template <class> class, class>
   basic_packet<RefCount>&& basic_packet<RefCount>::at(shim::string_view key) && {
     shim::visit([&] (auto& v) { v = std::move(v).at(key); }, impl);
     return std::move(*this);
