@@ -478,22 +478,33 @@ namespace dart {
     namespace detail {
       template <class T>
       using nonowning_t = typename T::is_nonowning;
+
+      template <bool, template <template <class> class> class Tmp, template <class> class RefCount>
+      struct owner_indirection_impl {
+        using type = Tmp<RefCount>;
+      };
+      template <template <template <class> class> class Tmp, template <class> class RefCount>
+      struct owner_indirection_impl<false, Tmp, RefCount> {
+        template <class T>
+        using rebinder = typename RefCount<T>::template refcount_rebind<typename RefCount<T>::element_type>;
+
+        using type = Tmp<rebinder>;
+      };
     }
 
     template <class T>
     struct is_owner : meta::negation<meta::is_detected<detail::nonowning_t, T>> {};
 
-    template <template <class> class RefCount>
-    struct owner_for {
-      template <class T>
-      using rebinder = typename RefCount<T>::template refcount_rebind<typename RefCount<T>::element_type>;
-
-      using eval = meta::higher_conditional<
+    template <template <template <class> class> class Tmp, template <class> class RefCount>
+    struct owner_indirection {
+      using type = typename detail::owner_indirection_impl<
         is_owner<RefCount<gsl::byte>>::value,
-        RefCount,
-        rebinder
-      >;
+        Tmp,
+        RefCount
+      >::type;
     };
+    template <template <template <class> class> class Tmp, template <class> class RefCount>
+    using owner_indirection_t = typename owner_indirection<Tmp, RefCount>::type;
 
   }
 

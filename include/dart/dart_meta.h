@@ -31,17 +31,6 @@ namespace dart {
       using type = T;
     };
 
-    template <bool cond, template <class> class Success, template <class> class Failure>
-    struct higher_conditional {
-      template <class Arg>
-      using result = Success<Arg>;
-    };
-    template <template <class> class Success, template <class> class Failure>
-    struct higher_conditional<false, Success, Failure> {
-      template <class Arg>
-      using result = Failure<Arg>;
-    };
-
     // Create type traits to check for each type of comparison.
     DART_COMPARE_HELPER(are_comparable, ==);
     DART_COMPARE_HELPER(are_negated_comparable, !=);

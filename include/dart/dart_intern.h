@@ -393,12 +393,12 @@ namespace dart {
 
     // Aliases for STL structures.
     template <template <class> class RefCount>
-    using packet_elements = std::vector<basic_heap<refcount::owner_for<RefCount>::eval::template result>>;
+    using packet_elements = std::vector<refcount::owner_indirection_t<basic_heap, RefCount>>;
     template <template <class> class RefCount>
     using packet_fields = std::map<
-      basic_heap<refcount::owner_for<RefCount>::eval::template result>,
-      basic_heap<refcount::owner_for<RefCount>::eval::template result>,
-      dart_comparator<refcount::owner_for<RefCount>::eval::template result>
+      refcount::owner_indirection_t<basic_heap, RefCount>,
+      refcount::owner_indirection_t<basic_heap, RefCount>,
+      refcount::owner_indirection_t<dart_comparator, RefCount>
     >;
 
     /**
