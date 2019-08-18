@@ -274,7 +274,7 @@ namespace dart {
     auto& elements = get_elements();
     if (pos >= elements.size()) return end();
     auto new_it = elements.erase(elements.begin() + pos);
-    return detail::dn_iterator<RefCount> {new_it, [] (auto& it) { return *it; }};
+    return detail::dynamic_iterator<RefCount> {new_it, [] (auto& it) -> auto const& { return *it; }};
   }
 
   template <template <class> class RefCount>
@@ -804,7 +804,7 @@ namespace dart {
   template <template <class> class RefCount>
   auto basic_heap<RefCount>::iterator_index(iterator pos) const -> size_type {
     // Dig all the way down and get the underlying iterator layout.
-    using elements_layout = typename detail::dn_iterator<RefCount>::elements_layout;
+    using elements_layout = typename detail::dynamic_iterator<RefCount>::elements_layout;
     return shim::visit(
       shim::compose_together(
         [] (elements_type const& elems, elements_layout& layout) -> size_type {

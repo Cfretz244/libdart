@@ -4416,11 +4416,11 @@ namespace dart {
 
           /*----- Private Lifecycle Functions -----*/
 
-          iterator(detail::dn_iterator<RefCount> it) : impl(std::move(it)) {}
+          iterator(detail::dynamic_iterator<RefCount> it) : impl(std::move(it)) {}
 
           /*----- Private Members -----*/
 
-          shim::optional<detail::dn_iterator<RefCount>> impl;
+          shim::optional<detail::dynamic_iterator<RefCount>> impl;
 
           /*----- Friends -----*/
 
@@ -4434,6 +4434,8 @@ namespace dart {
       using number = basic_number<basic_heap>;
       using flag = basic_flag<basic_heap>;
       using null = basic_null<basic_heap>;
+
+      using view = basic_heap<view_ptr_context<RefCount>::template view_ptr>;
 
       using size_type = size_t;
       using reverse_iterator = std::reverse_iterator<iterator>;
@@ -4610,6 +4612,10 @@ namespace dart {
        *  Returns true in all other situations.
        */
       explicit operator bool() const noexcept;
+
+      operator view() const& noexcept;
+
+      operator view() && = delete;
 
       /**
        *  @brief
@@ -6558,8 +6564,11 @@ namespace dart {
       using packet_fields = detail::packet_fields<RefCount>;
       using packet_elements = detail::packet_elements<RefCount>;
 
-      using fields_type = shareable_ptr<RefCount<packet_fields>>;
-      using elements_type = shareable_ptr<RefCount<packet_elements>>;
+      using fields_rc_type = RefCount<packet_fields>;
+      using elements_rc_type = RefCount<packet_elements>;
+
+      using fields_type = shareable_ptr<fields_rc_type>;
+      using elements_type = shareable_ptr<elements_rc_type>;
 
       using type_data = shim::variant<
         shim::monostate,
@@ -6574,6 +6583,8 @@ namespace dart {
 
       /*----- Private Lifecycle Functions -----*/
 
+      template <class TypeData>
+      basic_heap(detail::view_tag, TypeData const& data);
       basic_heap(detail::object_tag) :
         data(make_shareable<RefCount<packet_fields>>())
       {}
@@ -6638,6 +6649,9 @@ namespace dart {
       friend size_t detail::sso_bytes<RefCount>();
       friend class detail::object<RefCount>;
       friend class detail::array<RefCount>;
+      
+      template <template <class> class RC>
+      friend class basic_heap;
       friend class basic_buffer<RefCount>;
       friend class basic_packet<RefCount>;
 
@@ -6761,6 +6775,8 @@ namespace dart {
       using number = basic_number<basic_buffer>;
       using flag = basic_flag<basic_buffer>;
       using null = basic_null<basic_buffer>;
+
+      using view = basic_buffer<view_ptr_context<RefCount>::template view_ptr>;
 
       using size_type = size_t;
       using reverse_iterator = std::reverse_iterator<iterator>;
@@ -7131,6 +7147,10 @@ namespace dart {
        *  Returns true in all other situations.
        */
       explicit operator bool() const noexcept;
+
+      operator view() const& noexcept;
+
+      operator view() && = delete;
 
       /**
        *  @brief
@@ -8671,6 +8691,7 @@ namespace dart {
       /*----- Private Types -----*/
 
       using buffer_ref_type = detail::buffer_refcount_type<RefCount>;
+      using ref_type = typename buffer_ref_type::value_type;
 
       /*----- Private Lifecycle Functions -----*/
 
@@ -8692,6 +8713,8 @@ namespace dart {
 
       /*----- Friends -----*/
 
+      template <template <class> class RC>
+      friend class basic_buffer;
       friend class basic_packet<RefCount>;
       friend struct detail::buffer_builder<RefCount>;
       template <template <class> class RC>
@@ -8842,6 +8865,8 @@ namespace dart {
       using number = basic_number<basic_packet>;
       using flag = basic_flag<basic_packet>;
       using null = basic_null<basic_packet>;
+
+      using view = basic_packet<view_ptr_context<RefCount>::template view_ptr>;
 
       using size_type = size_t;
       using reverse_iterator = std::reverse_iterator<iterator>;
@@ -9211,6 +9236,10 @@ namespace dart {
        *  Returns true in all other situations.
        */
       explicit operator bool() const noexcept;
+
+      operator view() const& noexcept;
+
+      operator view() && = delete;
 
       /**
        *  @brief

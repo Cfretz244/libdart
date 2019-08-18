@@ -311,7 +311,7 @@ namespace dart {
 
   template <template <class> class RefCount>
   auto basic_heap<RefCount>::erase(shim::string_view key) -> iterator {
-    return erase_key_impl(key, [] (auto& it) { return it->second; }, nullptr);
+    return erase_key_impl(key, [] (auto& it) -> auto const& { return it->second; }, nullptr);
   }
 
   template <template <class> class RefCount>
@@ -582,7 +582,8 @@ namespace dart {
     // a temporary heap.
     auto& fields = get_fields();
     auto found = fields.find(key);
-    return found != fields.end() ? found->second : basic_heap::null();
+    if (found == fields.end()) return basic_heap::make_null();
+    else return found->second;
   }
 
   template <template <class> class RefCount>
@@ -762,8 +763,8 @@ namespace dart {
   template <template <class> class RefCount>
   auto basic_heap<RefCount>::find(shim::string_view key) const -> iterator {
     if (is_object()) {
-      auto deref = [] (auto& it) { return it->second; };
-      return iterator(detail::dn_iterator<RefCount>(try_get_fields()->find(key), deref));
+      auto deref = [] (auto& it) -> auto const& { return it->second; };
+      return iterator(detail::dynamic_iterator<RefCount>(try_get_fields()->find(key), deref));
     } else {
       throw type_error("dart::heap isn't an object and cannot find key-value mappings");
     }
@@ -806,8 +807,8 @@ namespace dart {
   template <template <class> class RefCount>
   auto basic_heap<RefCount>::find_key(shim::string_view key) const -> iterator {
     if (is_object()) {
-      auto deref = [] (auto& it) { return it->first; };
-      return iterator(detail::dn_iterator<RefCount>(try_get_fields()->find(key), deref));
+      auto deref = [] (auto& it) -> auto const& { return it->first; };
+      return iterator(detail::dynamic_iterator<RefCount>(try_get_fields()->find(key), deref));
     } else {
       throw type_error("dart::heap isn't an object and cannot find key-value mappings");
     }
@@ -961,12 +962,12 @@ namespace dart {
 
     // Erase if we found it.
     if (new_it != fields.end()) new_it = fields.erase(new_it);
-    return detail::dn_iterator<RefCount> {new_it, std::forward<Deref>(deref)};
+    return detail::dynamic_iterator<RefCount> {new_it, std::forward<Deref>(deref)};
   }
 
   template <template <class> class RefCount>
   shim::string_view basic_heap<RefCount>::iterator_key(iterator pos) const {
-    using fields_layout = typename detail::dn_iterator<RefCount>::fields_layout;
+    using fields_layout = typename detail::dynamic_iterator<RefCount>::fields_layout;
     return shim::visit(
       shim::compose_together(
         [] (fields_type const&, fields_layout& layout) -> shim::string_view {

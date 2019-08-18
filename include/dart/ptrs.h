@@ -246,6 +246,7 @@ namespace dart {
 
       /*----- Public Types -----*/
 
+      using value_type = T;
       using element_type = typename refcount_traits<T>::element_type;
 
       /*----- Lifecycle Functions -----*/
@@ -344,12 +345,13 @@ namespace dart {
       // The only thing we can definitely do with T is pass it into dart::refcount_traits::move.
       void transfer(T& ptr) && noexcept(refcount_traits<T>::is_nothrow_moveable::value);
 
+      auto raw() noexcept -> value_type&;
+      auto raw() const noexcept -> value_type const&;
+
     private:
 
       /*----- Private Types -----*/
 
-      using value_type = T;
-      
       struct partial_construction_tag {};
 
       /*----- Private Lifecycle Functions -----*/
@@ -383,8 +385,8 @@ namespace dart {
         using is_nonowning = refcount_type;
         using element_type = typename refcount_traits<refcount_type>::element_type;
 
-        template <class U>
-        using refcount_rebind = RefCount<U>;
+        template <template <template <class> class> class Binder>
+        using refcount_rebind = Binder<RefCount>;
 
         /*----- Lifecycle Functions -----*/
 
@@ -397,10 +399,11 @@ namespace dart {
         // I'm not currently disallowing construction from temporaries
         // I can imagine scenarios where it could be useful, and generally,
         // you'll need to know what you're doing to work with the view types
+        view_ptr(std::nullptr_t) noexcept : view_ptr() {}
         view_ptr(refcount_type const& owner) noexcept : impl(&owner) {}
 
         // Lifecycle functions mostly do nothing
-        view_ptr() : impl(nullptr) {}
+        view_ptr() noexcept : impl(nullptr) {}
         view_ptr(view_ptr const&) = default;
         view_ptr(view_ptr&& other) noexcept;
         ~view_ptr() = default;
@@ -485,10 +488,12 @@ namespace dart {
       };
       template <template <template <class> class> class Tmp, template <class> class RefCount>
       struct owner_indirection_impl<false, Tmp, RefCount> {
-        template <class T>
-        using rebinder = typename RefCount<T>::template refcount_rebind<typename RefCount<T>::element_type>;
+        template <template <class> class Owner>
+        struct rebinder {
+          using type = Tmp<Owner>;
+        };
 
-        using type = Tmp<rebinder>;
+        using type = typename RefCount<gsl::byte>::template refcount_rebind<rebinder>::type;
       };
     }
 

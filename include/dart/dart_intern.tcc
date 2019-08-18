@@ -162,6 +162,43 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
+  template <class TypeData>
+  basic_heap<RefCount>::basic_heap(detail::view_tag, TypeData const& parent) {
+    switch (parent.index()) {
+      case 0:
+        data = std::get<0>(parent);
+        break;
+      case 1:
+        data = fields_rc_type {std::get<1>(parent).raw()};
+        break;
+      case 2:
+        data = elements_rc_type {std::get<2>(parent).raw()};
+        break;
+      case 3:
+        {
+          auto& str = std::get<3>(parent);
+          data = dynamic_string_layout {str.ptr, str.len};
+          break;
+        }
+      case 4:
+        {
+          auto& str = std::get<4>(parent);
+          data = inline_string_layout {str.buffer, str.left};
+          break;
+        }
+      case 5:
+        data = std::get<5>(parent);
+        break;
+      case 6:
+        data = std::get<6>(parent);
+        break;
+      case 7:
+        data = std::get<7>(parent);
+        break;
+    }
+  }
+
+  template <template <class> class RefCount>
   basic_buffer<RefCount>::basic_buffer(detail::raw_element raw, buffer_ref_type ref) :
     raw(raw),
     buffer_ref(std::move(ref))

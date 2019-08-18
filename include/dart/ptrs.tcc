@@ -426,6 +426,16 @@ namespace dart {
     refcount_traits<T>::move(&ptr, std::move(impl));
   }
 
+  template <class T>
+  auto shareable_ptr<T>::raw() noexcept -> value_type& {
+    return impl;
+  }
+
+  template <class T>
+  auto shareable_ptr<T>::raw() const noexcept -> value_type const& {
+    return impl;
+  }
+
   template <class T, class... Args>
   shareable_ptr<T> make_shareable(Args&&... the_args) {
     shareable_ptr<T> ptr(typename shareable_ptr<T>::partial_construction_tag {});

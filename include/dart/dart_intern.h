@@ -487,8 +487,9 @@ namespace dart {
       /*----- Types -----*/
 
       using value_type = basic_heap<RefCount>;
-      using fields_deref_func = value_type (typename packet_fields<RefCount>::const_iterator const&);
-      using elements_deref_func = value_type (typename packet_elements<RefCount>::const_iterator const&);
+      using reference = value_type const&;
+      using fields_deref_func = reference (typename packet_fields<RefCount>::const_iterator const&);
+      using elements_deref_func = reference (typename packet_elements<RefCount>::const_iterator const&);
 
       struct fields_layout {
         fields_deref_func* deref;
@@ -528,13 +529,15 @@ namespace dart {
       auto operator ++(int) noexcept -> dn_iterator;
       auto operator --(int) noexcept -> dn_iterator;
 
-      auto operator *() const noexcept -> value_type;
+      auto operator *() const noexcept -> reference;
 
       /*----- Members -----*/
 
       implerator impl;
 
     };
+    template <template <class> class RefCount>
+    using dynamic_iterator = refcount::owner_indirection_t<dn_iterator, RefCount>;
 
     /**
      *  @brief
@@ -818,6 +821,7 @@ namespace dart {
     };
 
     // Used for tag dispatch from factory functions.
+    struct view_tag {};
     struct object_tag {
       static constexpr auto alignment = object<std::shared_ptr>::alignment;
     };

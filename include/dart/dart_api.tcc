@@ -385,6 +385,27 @@ namespace dart {
     else return boolean();
   }
 
+  template <template <class> class RefCount>
+  basic_heap<RefCount>::operator view() const& noexcept {
+    return view {detail::view_tag {}, data};
+  }
+
+  template <template <class> class RefCount>
+  basic_buffer<RefCount>::operator view() const& noexcept {
+    view tmp;
+    tmp.raw = raw;
+    tmp.buffer_ref = typename view::ref_type {buffer_ref.raw()};
+    return tmp;
+  }
+
+  template <template <class> class RefCount>
+  basic_packet<RefCount>::operator view() const& noexcept {
+    return shim::visit([] (auto& impl) -> view {
+      using view_impl = typename std::decay_t<decltype(impl)>::view;
+      return view_impl {impl};
+    }, impl);
+  }
+
   template <class String>
   basic_string<String>::operator std::string() const {
     return std::string {val};
@@ -555,13 +576,13 @@ namespace dart {
       // If the key was already present, insert will fail without consuming our value.
       // Overwrite it.
       if (!res.second) res.first->second = std::move(tmp_value);
-      return detail::dn_iterator<RefCount> {res.first, [] (auto& it) { return it->second; }};
+      return detail::dynamic_iterator<RefCount> {res.first, [] (auto& it) -> auto const& { return it->second; }};
     } else if (tmp_key.is_integer()) {
       auto& elements = get_elements();
       auto pos = static_cast<size_type>(tmp_key.integer());
       if (pos > elements.size()) throw std::out_of_range("dart::heap cannot insert at out of range index");
       auto new_it = elements.insert(elements.begin() + pos, std::forward<decltype(tmp_value)>(tmp_value));
-      return detail::dn_iterator<RefCount> {new_it, [] (auto& it) { return *it; }};
+      return detail::dynamic_iterator<RefCount> {new_it, [] (auto& it) -> auto const& { return *it; }};
     } else {
       throw type_error("dart::heap cannot insert keys with non string/integer types");
     }
@@ -577,7 +598,7 @@ namespace dart {
   template <class ValueType, class>
   auto basic_heap<RefCount>::insert(iterator pos, ValueType&& value) -> iterator {
     // Dig all the way down and get the underlying iterator layout.
-    using elements_layout = typename detail::dn_iterator<RefCount>::elements_layout;
+    using elements_layout = typename detail::dynamic_iterator<RefCount>::elements_layout;
 
     // Make sure our iterator can be used.
     if (!pos) throw std::invalid_argument("dart::heap cannot insert from a valueless iterator");
@@ -617,14 +638,14 @@ namespace dart {
       auto it = fields.find(tmp_key);
       if (it == fields.end()) throw std::out_of_range("dart::heap cannot set a non-existent key");
       it->second = std::forward<decltype(tmp_val)>(tmp_val);
-      return detail::dn_iterator<RefCount>{it, [] (auto& it) { return it->second; }};
+      return detail::dynamic_iterator<RefCount>{it, [] (auto& it) -> auto const& { return it->second; }};
     } else if (tmp_key.is_integer()) {
       auto& elements = get_elements();
       auto pos = static_cast<size_type>(tmp_key.integer());
       if (pos >= elements.size()) throw std::out_of_range("dart::heap cannot set a value at out of range index");
       auto it = elements.begin() + pos;
       *it = std::forward<decltype(tmp_val)>(tmp_val);
-      return detail::dn_iterator<RefCount> {it, [] (auto& it) { return *it; }};
+      return detail::dynamic_iterator<RefCount> {it, [] (auto& it) -> auto const& { return *it; }};
     } else {
       throw type_error("dart::heap cannot set keys with non string/integer types");
     }
@@ -640,7 +661,7 @@ namespace dart {
   template <class ValueType, class>
   auto basic_heap<RefCount>::set(iterator pos, ValueType&& value) -> iterator {
     // Dig all the way down and get the underlying iterator layout.
-    using elements_layout = typename detail::dn_iterator<RefCount>::elements_layout;
+    using elements_layout = typename detail::dynamic_iterator<RefCount>::elements_layout;
 
     // Make sure our iterator can be used.
     if (!pos) throw std::invalid_argument("dart::heap cannot insert from a valueless iterator");
@@ -688,7 +709,7 @@ namespace dart {
   template <template <class> class RefCount>
   auto basic_heap<RefCount>::erase(iterator pos) -> iterator {
     // Dig all the way down and get the underlying iterator layout.
-    using fields_layout = typename detail::dn_iterator<RefCount>::fields_layout;
+    using fields_layout = typename detail::dynamic_iterator<RefCount>::fields_layout;
 
     // Make sure our iterator can be used.
     if (!pos) throw std::invalid_argument("dart::heap cannot erase from a valueless iterator");
@@ -1937,11 +1958,11 @@ namespace dart {
   template <template <class> class RefCount>
   auto basic_heap<RefCount>::begin() const -> iterator {
     if (is_object()) {
-      auto deref = [] (auto& it) { return it->second; };
-      return iterator(detail::dn_iterator<RefCount>(try_get_fields()->begin(), deref));
+      auto deref = [] (auto& it) -> auto const& { return it->second; };
+      return iterator(detail::dynamic_iterator<RefCount>(try_get_fields()->begin(), deref));
     } else if (is_array()) {
-      auto deref = [] (auto& it) { return *it; };
-      return iterator(detail::dn_iterator<RefCount>(try_get_elements()->begin(), deref));
+      auto deref = [] (auto& it) -> auto const& { return *it; };
+      return iterator(detail::dynamic_iterator<RefCount>(try_get_elements()->begin(), deref));
     } else {
       throw type_error("dart::heap isn't an aggregate and cannot be iterated over");
     }
@@ -1997,11 +2018,11 @@ namespace dart {
   template <template <class> class RefCount>
   auto basic_heap<RefCount>::end() const -> iterator {
     if (is_object()) {
-      auto deref = [] (auto& it) { return it->second; };
-      return iterator(detail::dn_iterator<RefCount>(try_get_fields()->end(), deref));
+      auto deref = [] (auto& it) -> auto const& { return it->second; };
+      return iterator(detail::dynamic_iterator<RefCount>(try_get_fields()->end(), deref));
     } else if (is_array()) {
-      auto deref = [] (auto& it) { return *it; };
-      return iterator(detail::dn_iterator<RefCount>(try_get_elements()->end(), deref));
+      auto deref = [] (auto& it) -> auto const& { return *it; };
+      return iterator(detail::dynamic_iterator<RefCount>(try_get_elements()->end(), deref));
     } else {
       throw type_error("dart::heap isn't an aggregate and cannot be iterated over");
     }
@@ -2102,8 +2123,8 @@ namespace dart {
   template <template <class> class RefCount>
   auto basic_heap<RefCount>::key_begin() const -> iterator {
     if (is_object()) {
-      auto deref = [] (auto& it) { return it->first; };
-      return iterator(detail::dn_iterator<RefCount>(try_get_fields()->begin(), deref));
+      auto deref = [] (auto& it) -> auto const& { return it->first; };
+      return iterator(detail::dynamic_iterator<RefCount>(try_get_fields()->begin(), deref));
     } else {
       throw type_error("dart::heap is not an object and cannot iterate over keys");
     }
@@ -2147,8 +2168,8 @@ namespace dart {
   template <template <class> class RefCount>
   auto basic_heap<RefCount>::key_end() const -> iterator {
     if (is_object()) {
-      auto deref = [] (auto& it) { return it->first; };
-      return iterator(detail::dn_iterator<RefCount>(try_get_fields()->end(), deref));
+      auto deref = [] (auto& it) -> auto const& { return it->first; };
+      return iterator(detail::dynamic_iterator<RefCount>(try_get_fields()->end(), deref));
     } else {
       throw type_error("dart::heap is not an object and cannot iterate over keys");
     }
