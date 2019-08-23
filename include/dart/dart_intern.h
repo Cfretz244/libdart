@@ -360,7 +360,6 @@ namespace dart {
 
         /*----- Lifecycle Functions -----*/
 
-        prefix_entry() noexcept = default;
         inline prefix_entry(detail::raw_type type, uint32_t offset, shim::string_view prefix) noexcept;
         prefix_entry(prefix_entry const&) = default;
 
