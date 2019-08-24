@@ -1,5 +1,5 @@
-#ifndef DART_INTERN_H
-#define DART_INTERN_H
+#ifndef DART_COMMON_H
+#define DART_COMMON_H
 
 // Automatically detect libraries if possible.
 #if defined(__has_include)
@@ -1288,6 +1288,170 @@ namespace dart {
         std::sort(std::begin(ptrs), std::end(ptrs), [&] (auto* lhs, auto* rhs) { return comp(*lhs, *rhs); });
         return cb(gsl::make_span(ptrs));
       }
+    }
+
+#ifdef DART_USE_SAJSON
+    // FIXME: Find somewhere better to put these functions.
+    template <template <class> class RefCount>
+    raw_type json_identify(sajson::value curr_val) {
+      switch (curr_val.get_type()) {
+        case sajson::TYPE_OBJECT:
+          return raw_type::object;
+        case sajson::TYPE_ARRAY:
+          return raw_type::array;
+        case sajson::TYPE_STRING:
+          // Figure out what type of string we've been given.
+          return identify_string<RefCount>({curr_val.as_cstring(), curr_val.get_string_length()});
+        case sajson::TYPE_INTEGER:
+          return identify_integer(curr_val.get_integer_value());
+        case sajson::TYPE_DOUBLE:
+          return identify_decimal(curr_val.get_double_value());
+        case sajson::TYPE_FALSE:
+        case sajson::TYPE_TRUE:
+          return raw_type::boolean;
+        default:
+          DART_ASSERT(curr_val.get_type() == sajson::TYPE_NULL);
+          return raw_type::null;
+      }
+    }
+
+    template <template <class> class RefCount>
+    size_t json_lower(gsl::byte* buffer, sajson::value curr_val) {
+      auto raw = json_identify<RefCount>(curr_val);
+      switch (raw) {
+        case raw_type::object:
+          new(buffer) object<RefCount>(curr_val);
+          break;
+        case raw_type::array:
+          new(buffer) array<RefCount>(curr_val);
+          break;
+        case raw_type::small_string:
+        case raw_type::string:
+          new(buffer) string(curr_val.as_cstring(), curr_val.get_string_length());
+          break;
+        case raw_type::big_string:
+          new(buffer) big_string(curr_val.as_cstring(), curr_val.get_string_length());
+          break;
+        case raw_type::short_integer:
+          new(buffer) primitive<int16_t>(curr_val.get_integer_value());
+          break;
+        case raw_type::integer:
+          new(buffer) primitive<int32_t>(curr_val.get_integer_value());
+          break;
+        case raw_type::long_integer:
+          new(buffer) primitive<int64_t>(curr_val.get_integer_value());
+          break;
+        case raw_type::decimal:
+          new(buffer) primitive<float>(curr_val.get_double_value());
+          break;
+        case raw_type::long_decimal:
+          new(buffer) primitive<double>(curr_val.get_double_value());
+          break;
+        case raw_type::boolean:
+          new(buffer) detail::primitive<bool>((curr_val.get_type() == sajson::TYPE_TRUE) ? true : false);
+          break;
+        default:
+          DART_ASSERT(curr_val.get_type() == sajson::TYPE_NULL);
+          break;
+      }
+      return detail::find_sizeof<RefCount>({raw, buffer});
+    }
+#endif
+
+#if DART_HAS_RAPIDJSON
+    // FIXME: Find somewhere better to put these functions.
+    template <template <class> class RefCount>
+    raw_type json_identify(rapidjson::Value const& curr_val) {
+      switch (curr_val.GetType()) {
+        case rapidjson::kObjectType:
+          return raw_type::object;
+        case rapidjson::kArrayType:
+          return raw_type::array;
+        case rapidjson::kStringType:
+          // Figure out what type of string we've been given.
+          return identify_string<RefCount>({curr_val.GetString(), curr_val.GetStringLength()});
+        case rapidjson::kNumberType:
+          // Figure out what type of number we've been given.
+          if (curr_val.IsInt()) return identify_integer(curr_val.GetInt64());
+          else return identify_decimal(curr_val.GetDouble());
+        case rapidjson::kTrueType:
+        case rapidjson::kFalseType:
+          return raw_type::boolean;
+        default:
+          DART_ASSERT(curr_val.IsNull());
+          return raw_type::null;
+      }
+    }
+
+    template <template <class> class RefCount>
+    size_t json_lower(gsl::byte* buffer, rapidjson::Value const& curr_val) {
+      auto raw = json_identify<RefCount>(curr_val);
+      switch (raw) {
+        case raw_type::object:
+          new(buffer) object<RefCount>(curr_val);
+          break;
+        case raw_type::array:
+          new(buffer) array<RefCount>(curr_val);
+          break;
+        case raw_type::small_string:
+        case raw_type::string:
+          new(buffer) string(curr_val.GetString(), curr_val.GetStringLength());
+          break;
+        case raw_type::big_string:
+          new(buffer) big_string(curr_val.GetString(), curr_val.GetStringLength());
+          break;
+        case raw_type::short_integer:
+          new(buffer) primitive<int16_t>(curr_val.GetInt());
+          break;
+        case raw_type::integer:
+          new(buffer) primitive<int32_t>(curr_val.GetInt());
+          break;
+        case raw_type::long_integer:
+          new(buffer) primitive<int64_t>(curr_val.GetInt64());
+          break;
+        case raw_type::decimal:
+          new(buffer) primitive<float>(curr_val.GetFloat());
+          break;
+        case raw_type::long_decimal:
+          new(buffer) primitive<double>(curr_val.GetDouble());
+          break;
+        case raw_type::boolean:
+          new(buffer) detail::primitive<bool>(curr_val.GetBool());
+          break;
+        default:
+          DART_ASSERT(curr_val.IsNull());
+          break;
+      }
+      return detail::find_sizeof<RefCount>({raw, buffer});
+    }
+#endif
+
+    template <class Packet>
+    Packet get_nested_impl(Packet haystack, shim::string_view needle, char separator) {
+      // Spin through the provided needle until we reach the end, or hit a leaf.
+      auto start = needle.begin();
+      typename Packet::view curr = haystack;
+      while (start < needle.end() && curr.is_object()) {
+        // Tokenize up the needle and drag the current packet through each one.
+        auto stop = std::find(start, needle.end(), separator);
+        curr = curr[need.substr(start - needle.begin(), stop - start)];
+
+        // Prepare for next iteration.
+        stop == needle.end() ? start = stop : start = stop + 1;
+      }
+
+      // If we finished, find our final value, otherwise return null.
+      return start >= needle.end() ? curr.as_owner() : Packet::make_null();
+    }
+
+    template <class Packet>
+    std::vector<Packet> keys_impl(Packet const& that) {
+      std::vector<Packet> packets;
+      packets.reserve(that.size());
+      for (auto it = that.key_begin(); it != that.key_end(); ++it) {
+        packets.push_back(*it);
+      }
+      return packets;
     }
 
   }

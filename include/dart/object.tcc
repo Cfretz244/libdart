@@ -3,42 +3,11 @@
 
 /*----- Local Includes -----*/
 
-#include "dart_intern.h"
+#include "common.h"
 
 /*----- Function Implementations -----*/
 
 namespace dart {
-
-  namespace detail {
-
-    template <class Packet>
-    Packet get_nested_impl(Packet haystack, shim::string_view needle, char separator) {
-      // Spin through the provided needle until we reach the end, or hit a leaf.
-      auto start = needle.begin();
-      while (start < needle.end() && haystack.is_object()) {
-        // Tokenize up the needle and drag the current packet through each one.
-        auto stop = std::find(start, needle.end(), separator);
-        haystack = std::move(haystack)[needle.substr(start - needle.begin(), stop - start)];
-
-        // Prepare for next iteration.
-        stop == needle.end() ? start = stop : start = stop + 1;
-      }
-
-      // If we finished, find our final value, otherwise return null.
-      return start >= needle.end() ? haystack : Packet::make_null();
-    }
-
-    template <class Packet>
-    std::vector<Packet> keys_impl(Packet const& that) {
-      std::vector<Packet> packets;
-      packets.reserve(that.size());
-      for (auto it = that.key_begin(); it != that.key_end(); ++it) {
-        packets.push_back(*it);
-      }
-      return packets;
-    }
-
-  }
 
   template <class Object>
   template <class Arg,
