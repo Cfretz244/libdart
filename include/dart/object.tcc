@@ -1,5 +1,5 @@
-#ifndef DART_OBJ_IMPL_H
-#define DART_OBJ_IMPL_H
+#ifndef DART_OBJECT_H
+#define DART_OBJECT_H
 
 /*----- Local Includes -----*/
 

@@ -17,6 +17,7 @@
 #include <vector>
 #include <math.h>
 #include <gsl/gsl>
+#include <errno.h>
 #include <cstdlib>
 #include <unistd.h>
 #include <stdarg.h>
@@ -30,12 +31,16 @@
 #include <rapidjson/error/en.h>
 #endif
 
+#if DART_HAS_YAML
+#include <yaml.h>
+#endif
+
 /*----- Local Includes -----*/
 
-#include "dart_shim.h"
-#include "dart_meta.h"
-#include "ordered.h"
-#include "ptrs.h"
+#include "shim.h"
+#include "meta.h"
+#include "support/ptrs.h"
+#include "support/ordered.h"
 
 /*----- System Includes with Compiler Flags -----*/
 
@@ -1426,6 +1431,21 @@ namespace dart {
     }
 #endif
 
+    // Helper function handles the edge case where we're working with
+    // a view type, and we need to cast it back to an owner, ONLY IF
+    // we are an owner ourselves.
+    template <class MaybeView, class View>
+    decltype(auto) view_return_indirection(View&& view) {
+      return shim::compose_together(
+        [] (auto&& v, std::true_type) -> decltype(auto) {
+          return std::forward<decltype(v)>(v);
+        },
+        [] (auto&& v, std::false_type) -> decltype(auto) {
+          return std::forward<decltype(v)>(v).as_owner();
+        }
+      )(std::forward<View>(view), std::is_same<std::decay_t<MaybeView>, std::decay_t<View>> {});
+    }
+
     template <class Packet>
     Packet get_nested_impl(Packet haystack, shim::string_view needle, char separator) {
       // Spin through the provided needle until we reach the end, or hit a leaf.
@@ -1434,14 +1454,15 @@ namespace dart {
       while (start < needle.end() && curr.is_object()) {
         // Tokenize up the needle and drag the current packet through each one.
         auto stop = std::find(start, needle.end(), separator);
-        curr = curr[need.substr(start - needle.begin(), stop - start)];
+        curr = curr[needle.substr(start - needle.begin(), stop - start)];
 
         // Prepare for next iteration.
         stop == needle.end() ? start = stop : start = stop + 1;
       }
 
       // If we finished, find our final value, otherwise return null.
-      return start >= needle.end() ? curr.as_owner() : Packet::make_null();
+      if (start < needle.end()) return Packet::make_null();
+      else return view_return_indirection<Packet>(curr);
     }
 
     template <class Packet>
@@ -1454,11 +1475,29 @@ namespace dart {
       return packets;
     }
 
+    template <class Packet>
+    std::vector<Packet> values_impl(Packet const& that) {
+      std::vector<Packet> packets;
+      packets.reserve(that.size());
+      for (auto entry : that) packets.push_back(std::move(entry));
+      return packets;
+    }
+
+    template <class T>
+    decltype(auto) maybe_dereference(T&& maybeptr, std::true_type) {
+      return *std::forward<T>(maybeptr);
+    }
+    template <class T>
+    decltype(auto) maybe_dereference(T&& maybeptr, std::false_type) {
+      return std::forward<T>(maybeptr);
+    }
+
   }
 
 }
 
 // Include main header file for all implementation files.
 #include "../dart.h"
+#include "common.tcc"
 
 #endif

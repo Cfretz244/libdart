@@ -11,6 +11,18 @@ namespace dart {
 
   namespace detail {
 
+    template <size_t bytes>
+    int prefix_compare_impl(char const* prefix, char const* str, size_t const len) noexcept {
+      if (len && *prefix != *str) return *prefix - *str;
+      else if (len) return prefix_compare_impl<bytes - 1>(prefix + 1, str + 1, len - 1);
+      else return *prefix;
+    }
+    template <>
+    inline int prefix_compare_impl<0>(char const*, char const* str, size_t const len) noexcept {
+      if (len) return -*str;
+      else return 0;
+    }
+
     template <template <class> class RefCount>
     bool dart_comparator<RefCount>::operator ()(shim::string_view lhs, shim::string_view rhs) const {
       auto const lhs_size = lhs.size();
