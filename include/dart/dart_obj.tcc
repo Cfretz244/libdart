@@ -81,121 +81,10 @@ namespace dart {
     ensure_object("dart::packet::object can only be constructed as an object");
   }
 
-  template <template <class> class RefCount>
-  template <class... Args, class>
-  basic_heap<RefCount> basic_heap<RefCount>::make_object(Args&&... pairs) {
-    auto obj = basic_heap(detail::object_tag {});
-    convert::as_span<basic_heap>([&] (auto args) {
-      // I don't know why this needs to be qualified,
-      // but some older versions of gcc get weird without it.
-      basic_heap::inject_pairs<true>(obj, args); 
-    }, std::forward<Args>(pairs)...);
-    return obj;
-  }
-
-  template <template <class> class RefCount>
-  template <class... Args, class>
-  basic_buffer<RefCount> basic_buffer<RefCount>::make_object(Args&&... pairs) {
-    // XXX: This HAS to check the parameter pack size using Args instead of pairs
-    // because using pairs segfaults gcc 5.1.0 for some reason
-    using pair_storage = std::array<detail::basic_pair<basic_packet<RefCount>>, sizeof...(Args) / 2>;
-    return convert::as_span<basic_packet<RefCount>>([] (auto args) {
-      // Group each key-value pair together, and create more temporary storage so that
-      // all other logic can work with pointers to pairs.
-      pair_storage storage;
-      for (auto i = 0U; i < static_cast<size_t>(args.size()); i += 2) {
-        storage[i / 2] = {std::move(args[i]), std::move(args[i + 1])};
-      }
-
-      // Sort the pairs and hand off to the low level code.
-      return detail::buffer_builder<RefCount>::build_buffer(gsl::make_span(storage));
-    }, std::forward<Args>(pairs)...);
-  }
-
-  template <template <class> class RefCount>
-  template <class... Args, class>
-  basic_packet<RefCount> basic_packet<RefCount>::make_object(Args&&... pairs) {
-    return basic_heap<RefCount>::make_object(std::forward<Args>(pairs)...);
-  }
-
-  template <template <class> class RefCount>
-  template <template <class> class, class>
-  basic_heap<RefCount> basic_heap<RefCount>::make_object(gsl::span<basic_heap const> pairs) {
-    auto obj = basic_heap(detail::object_tag {});
-    inject_pairs<false>(obj, pairs);
-    return obj;
-  }
-
-  template <template <class> class RefCount>
-  template <template <class> class, class>
-  basic_buffer<RefCount> basic_buffer<RefCount>::make_object(gsl::span<basic_heap<RefCount> const> pairs) {
-    return dynamic_make_object(pairs);
-  }
-
-  template <template <class> class RefCount>
-  template <template <class> class, class>
-  basic_packet<RefCount> basic_packet<RefCount>::make_object(gsl::span<basic_heap<RefCount> const> pairs) {
-    return basic_heap<RefCount>::make_object(pairs);
-  }
-
-  template <template <class> class RefCount>
-  template <template <class> class, class>
-  basic_heap<RefCount> basic_heap<RefCount>::make_object(gsl::span<basic_buffer<RefCount> const> pairs) {
-    auto obj = basic_heap(detail::object_tag {});
-    inject_pairs<false>(obj, pairs);
-    return obj;
-  }
-
-  template <template <class> class RefCount>
-  template <template <class> class, class>
-  basic_buffer<RefCount> basic_buffer<RefCount>::make_object(gsl::span<basic_buffer const> pairs) {
-    return dynamic_make_object(pairs);
-  }
-
-  template <template <class> class RefCount>
-  template <template <class> class, class>
-  basic_packet<RefCount> basic_packet<RefCount>::make_object(gsl::span<basic_buffer<RefCount> const> pairs) {
-    return basic_heap<RefCount>::make_object(pairs);
-  }
-
-  template <template <class> class RefCount>
-  template <template <class> class, class>
-  basic_heap<RefCount> basic_heap<RefCount>::make_object(gsl::span<basic_packet<RefCount> const> pairs) {
-    auto obj = basic_heap(detail::object_tag {});
-    inject_pairs<false>(obj, pairs);
-    return obj;
-  }
-
-  template <template <class> class RefCount>
-  template <template <class> class, class>
-  basic_buffer<RefCount> basic_buffer<RefCount>::make_object(gsl::span<basic_packet<RefCount> const> pairs) {
-    return dynamic_make_object(pairs);
-  }
-
-  template <template <class> class RefCount>
-  template <template <class> class, class>
-  basic_packet<RefCount> basic_packet<RefCount>::make_object(gsl::span<basic_packet const> pairs) {
-    return basic_heap<RefCount>::make_object(pairs);
-  }
-
   template <class Object>
   template <class KeyType, class ValueType, class>
   basic_object<Object>& basic_object<Object>::add_field(KeyType&& key, ValueType&& value) & {
     val.add_field(std::forward<KeyType>(key), std::forward<ValueType>(value));
-    return *this;
-  }
-
-  template <template <class> class RefCount>
-  template <class KeyType, class ValueType, class>
-  basic_heap<RefCount>& basic_heap<RefCount>::add_field(KeyType&& key, ValueType&& value) & {
-    insert(std::forward<KeyType>(key), std::forward<ValueType>(value));
-    return *this;
-  }
-
-  template <template <class> class RefCount>
-  template <class KeyType, class ValueType, class>
-  basic_packet<RefCount>& basic_packet<RefCount>::add_field(KeyType&& key, ValueType&& value) & {
-    get_heap().add_field(std::forward<KeyType>(key), std::forward<ValueType>(value));
     return *this;
   }
 
@@ -207,66 +96,10 @@ namespace dart {
     return std::move(*this);
   }
 
-  template <template <class> class RefCount>
-  template <class KeyType, class ValueType, class>
-  basic_heap<RefCount>&& basic_heap<RefCount>::add_field(KeyType&& key, ValueType&& value) && {
-    add_field(std::forward<KeyType>(key), std::forward<ValueType>(value));
-    return std::move(*this);
-  }
-
-  template <template <class> class RefCount>
-  template <class KeyType, class ValueType, class>
-  basic_packet<RefCount>&& basic_packet<RefCount>::add_field(KeyType&& key, ValueType&& value) && {
-    add_field(std::forward<KeyType>(key), std::forward<ValueType>(value));
-    return std::move(*this);
-  }
-
-  template <template <class> class RefCount>
-  template <template <class> class, class>
-  basic_heap<RefCount>& basic_heap<RefCount>::remove_field(shim::string_view key) & {
-    erase(key);
-    return *this;
-  }
-
-  template <template <class> class RefCount>
-  template <template <class> class, class>
-  basic_packet<RefCount>& basic_packet<RefCount>::remove_field(shim::string_view key) & {
-    erase(key);
-    return *this;
-  }
-
-  template <template <class> class RefCount>
-  template <template <class> class, class>
-  basic_heap<RefCount>&& basic_heap<RefCount>::remove_field(shim::string_view key) && {
-    remove_field(key);
-    return std::move(*this);
-  }
-
-  template <template <class> class RefCount>
-  template <template <class> class, class>
-  basic_packet<RefCount>&& basic_packet<RefCount>::remove_field(shim::string_view key) && {
-    remove_field(key);
-    return std::move(*this);
-  }
-
   template <class Object>
   template <class KeyType, class>
   basic_object<Object>& basic_object<Object>::remove_field(KeyType const& key) & {
     val.remove_field(key);
-    return *this;
-  }
-
-  template <template <class> class RefCount>
-  template <class KeyType, class>
-  basic_heap<RefCount>& basic_heap<RefCount>::remove_field(KeyType const& key) & {
-    erase(key.strv());
-    return *this;
-  }
-
-  template <template <class> class RefCount>
-  template <class KeyType, class>
-  basic_packet<RefCount>& basic_packet<RefCount>::remove_field(KeyType const& key) & {
-    erase(key.strv());
     return *this;
   }
 
@@ -275,20 +108,6 @@ namespace dart {
   basic_object<Object>&& basic_object<Object>::remove_field(KeyType const& key) && {
     auto&& tmp = std::move(val).remove_field(key);
     (void) tmp;
-    return std::move(*this);
-  }
-
-  template <template <class> class RefCount>
-  template <class KeyType, class>
-  basic_heap<RefCount>&& basic_heap<RefCount>::remove_field(KeyType const& key) && {
-    remove_field(key);
-    return std::move(*this);
-  }
-
-  template <template <class> class RefCount>
-  template <class KeyType, class>
-  basic_packet<RefCount>&& basic_packet<RefCount>::remove_field(KeyType const& key) && {
-    remove_field(key);
     return std::move(*this);
   }
 
@@ -310,30 +129,6 @@ namespace dart {
     return val.erase(key);
   }
 
-  template <template <class> class RefCount>
-  template <class String, template <class> class, class>
-  auto basic_heap<RefCount>::erase(basic_string<String> const& key) -> iterator {
-    return erase(key.strv());
-  }
-
-  template <template <class> class RefCount>
-  template <class String, template <class> class, class>
-  auto basic_packet<RefCount>::erase(basic_string<String> const& key) -> iterator {
-    return erase(key.strv());
-  }
-
-  template <template <class> class RefCount>
-  template <template <class> class, class>
-  auto basic_heap<RefCount>::erase(shim::string_view key) -> iterator {
-    return erase_key_impl(key, [] (auto& it) -> auto const& { return it->second; }, nullptr);
-  }
-
-  template <template <class> class RefCount>
-  template <template <class> class, class>
-  auto basic_packet<RefCount>::erase(shim::string_view key) -> iterator {
-    return get_heap().erase(key);
-  }
-
   template <class Object>
   template <class, class>
   void basic_object<Object>::clear() {
@@ -346,95 +141,6 @@ namespace dart {
     return basic_object {val.inject(std::forward<Args>(the_args)...)};
   }
 
-  template <template <class> class RefCount>
-  template <class... Args, class>
-  basic_heap<RefCount> basic_heap<RefCount>::inject(Args&&... pairs) const {
-    // Hand off to our implementation.
-    auto obj {*this};
-    convert::as_span<basic_heap>([&] (auto span) {
-      // I don't know why this needs to be qualified,
-      // but some older versions of gcc get weird without it.
-      basic_heap::inject_pairs<true>(obj, span);
-    }, std::forward<Args>(pairs)...);
-    return obj;
-  }
-
-  template <template <class> class RefCount>
-  template <class... Args, class>
-  basic_buffer<RefCount> basic_buffer<RefCount>::inject(Args&&... pairs) const {
-    // Forward the given arguments into a temporary object.
-    auto tmp = make_object(std::forward<Args>(pairs)...);
-
-    // Hand off to our implementation.
-    return detail::buffer_builder<RefCount>::merge_buffers(*this, tmp);
-  }
-
-  template <template <class> class RefCount>
-  template <class... Args, class>
-  basic_packet<RefCount> basic_packet<RefCount>::inject(Args&&... pairs) const {
-    return shim::visit([&] (auto& v) -> basic_packet { return v.inject(std::forward<Args>(pairs)...); }, impl);
-  }
-
-  template <template <class> class RefCount>
-  template <template <class> class, class>
-  basic_heap<RefCount> basic_heap<RefCount>::inject(gsl::span<basic_heap const> pairs) const {
-    auto obj {*this};
-    inject_pairs<false>(obj, pairs);
-    return obj;
-  }
-
-  template <template <class> class RefCount>
-  template <template <class> class, class>
-  basic_buffer<RefCount> basic_buffer<RefCount>::inject(gsl::span<basic_heap<RefCount> const> pairs) const {
-    return detail::buffer_builder<RefCount>::merge_buffers(*this, make_object(pairs));
-  }
-
-  template <template <class> class RefCount>
-  template <template <class> class, class>
-  basic_packet<RefCount> basic_packet<RefCount>::inject(gsl::span<basic_heap<RefCount> const> pairs) const {
-    return shim::visit([&] (auto& v) -> basic_packet { return v.inject(pairs); }, impl);
-  }
-
-  template <template <class> class RefCount>
-  template <template <class> class, class>
-  basic_heap<RefCount> basic_heap<RefCount>::inject(gsl::span<basic_buffer<RefCount> const> pairs) const {
-    auto obj {*this};
-    inject_pairs<false>(obj, pairs);
-    return obj;
-  }
-
-  template <template <class> class RefCount>
-  template <template <class> class, class>
-  basic_buffer<RefCount> basic_buffer<RefCount>::inject(gsl::span<basic_buffer const> pairs) const {
-    return detail::buffer_builder<RefCount>::merge_buffers(*this, make_object(pairs));
-  }
-
-  template <template <class> class RefCount>
-  template <template <class> class, class>
-  basic_packet<RefCount> basic_packet<RefCount>::inject(gsl::span<basic_buffer<RefCount> const> pairs) const {
-    return shim::visit([&] (auto& v) -> basic_packet { return v.inject(pairs); }, impl);
-  }
-
-  template <template <class> class RefCount>
-  template <template <class> class, class>
-  basic_heap<RefCount> basic_heap<RefCount>::inject(gsl::span<basic_packet<RefCount> const> pairs) const {
-    auto obj {*this};
-    inject_pairs<false>(obj, pairs);
-    return obj;
-  }
-
-  template <template <class> class RefCount>
-  template <template <class> class, class>
-  basic_buffer<RefCount> basic_buffer<RefCount>::inject(gsl::span<basic_packet<RefCount> const> pairs) const {
-    return detail::buffer_builder<RefCount>::merge_buffers(*this, make_object(pairs));
-  }
-
-  template <template <class> class RefCount>
-  template <template <class> class, class>
-  basic_packet<RefCount> basic_packet<RefCount>::inject(gsl::span<basic_packet const> pairs) const {
-    return shim::visit([&] (auto& v) -> basic_packet { return v.inject(pairs); }, impl);
-  }
-
   template <class Object>
   basic_object<Object> basic_object<Object>::project(std::initializer_list<shim::string_view> keys) const {
     return val.project(keys);
@@ -444,60 +150,6 @@ namespace dart {
   template <class StringSpan, class>
   basic_object<Object> basic_object<Object>::project(StringSpan const& keys) const {
     return val.project(keys);
-  }
-
-  template <template <class> class RefCount>
-  template <template <class> class, class>
-  basic_heap<RefCount> basic_heap<RefCount>::project(std::initializer_list<shim::string_view> keys) const {
-    return project_keys(keys);
-  }
-
-  template <template <class> class RefCount>
-  template <template <class> class, class>
-  basic_buffer<RefCount> basic_buffer<RefCount>::project(std::initializer_list<shim::string_view> keys) const {
-    return detail::buffer_builder<RefCount>::project_keys(*this, keys);
-  }
-
-  template <template <class> class RefCount>
-  template <template <class> class, class>
-  basic_packet<RefCount> basic_packet<RefCount>::project(std::initializer_list<shim::string_view> keys) const {
-    return shim::visit([&] (auto& v) -> basic_packet { return v.project(keys); }, impl);
-  }
-
-  template <template <class> class RefCount>
-  template <template <class> class, class>
-  basic_heap<RefCount> basic_heap<RefCount>::project(gsl::span<std::string const> keys) const {
-    return project_keys(keys);
-  }
-
-  template <template <class> class RefCount>
-  template <template <class> class, class>
-  basic_buffer<RefCount> basic_buffer<RefCount>::project(gsl::span<std::string const> keys) const {
-    return detail::buffer_builder<RefCount>::project_keys(*this, keys);
-  }
-
-  template <template <class> class RefCount>
-  template <template <class> class, class>
-  basic_packet<RefCount> basic_packet<RefCount>::project(gsl::span<std::string const> keys) const {
-    return shim::visit([&] (auto& v) -> basic_packet { return v.project(keys); }, impl);
-  }
-
-  template <template <class> class RefCount>
-  template <template <class> class, class>
-  basic_heap<RefCount> basic_heap<RefCount>::project(gsl::span<shim::string_view const> keys) const {
-    return project_keys(keys);
-  }
-
-  template <template <class> class RefCount>
-  template <template <class> class, class>
-  basic_buffer<RefCount> basic_buffer<RefCount>::project(gsl::span<shim::string_view const> keys) const {
-    return detail::buffer_builder<RefCount>::project_keys(*this, keys);
-  }
-
-  template <template <class> class RefCount>
-  template <template <class> class, class>
-  basic_packet<RefCount> basic_packet<RefCount>::project(gsl::span<shim::string_view const> keys) const {
-    return shim::visit([&] (auto& v) -> basic_packet { return v.project(keys); }, impl);
   }
 
   template <class Object>
@@ -512,164 +164,16 @@ namespace dart {
     return std::move(val)[key];
   }
 
-  template <template <class> class RefCount>
-  template <class String>
-  basic_heap<RefCount> basic_heap<RefCount>::operator [](basic_string<String> const& key) const {
-    return (*this)[key.strv()];
-  }
-
-  template <template <class> class RefCount>
-  template <class String>
-  basic_buffer<RefCount> basic_buffer<RefCount>::operator [](basic_string<String> const& key) const& {
-    return (*this)[key.strv()];
-  }
-
-  template <template <class> class RefCount>
-  template <class String>
-  basic_packet<RefCount> basic_packet<RefCount>::operator [](basic_string<String> const& key) const& {
-    return (*this)[key.strv()];
-  }
-
-  template <template <class> class RefCount>
-  template <class String, template <class> class, class>
-  basic_buffer<RefCount>&& basic_buffer<RefCount>::operator [](basic_string<String> const& key) && {
-    return std::move(*this)[key.strv()];
-  }
-
-  template <template <class> class RefCount>
-  template <class String, template <class> class, class>
-  basic_packet<RefCount>&& basic_packet<RefCount>::operator [](basic_string<String> const& key) && {
-    return std::move(*this)[key.strv()];
-  }
-
-  template <template <class> class RefCount>
-  basic_heap<RefCount> basic_heap<RefCount>::operator [](shim::string_view key) const {
-    return get(key);
-  }
-
-  template <template <class> class RefCount>
-  basic_buffer<RefCount> basic_buffer<RefCount>::operator [](shim::string_view key) const& {
-    return get(key);
-  }
-
-  template <template <class> class RefCount>
-  basic_packet<RefCount> basic_packet<RefCount>::operator [](shim::string_view key) const& {
-    return get(key);
-  }
-
-  template <template <class> class RefCount>
-  template <template <class> class, class>
-  basic_buffer<RefCount>&& basic_buffer<RefCount>::operator [](shim::string_view key) && {
-    return std::move(*this).get(key);
-  }
-
-  template <template <class> class RefCount>
-  template <template <class> class, class>
-  basic_packet<RefCount>&& basic_packet<RefCount>::operator [](shim::string_view key) && {
-    return std::move(*this).get(key);
-  }
-
   template <class Object>
   template <class KeyType, class>
   auto basic_object<Object>::get(KeyType const& key) const& -> value_type {
     return val.get(key);
   }
 
-  template <template <class> class RefCount>
-  template <class String>
-  basic_heap<RefCount> basic_heap<RefCount>::get(basic_string<String> const& key) const {
-    return get(key.strv());
-  }
-
-  template <template <class> class RefCount>
-  template <class String>
-  basic_buffer<RefCount> basic_buffer<RefCount>::get(basic_string<String> const& key) const& {
-    return get(key.strv());
-  }
-
   template <class Object>
   template <class KeyType, class>
   decltype(auto) basic_object<Object>::get(KeyType const& key) && {
     return std::move(val).get(key);
-  }
-
-  template <template <class> class RefCount>
-  template <class String, template <class> class, class>
-  basic_buffer<RefCount>&& basic_buffer<RefCount>::get(basic_string<String> const& key) && {
-    return std::move(*this).get(key.strv());
-  }
-
-  template <template <class> class RefCount>
-  template <class String>
-  basic_packet<RefCount> basic_packet<RefCount>::get(basic_string<String> const& key) const& {
-    return get(key.strv());
-  }
-
-  template <template <class> class RefCount>
-  template <class String, template <class> class, class>
-  basic_packet<RefCount>&& basic_packet<RefCount>::get(basic_string<String> const& key) && {
-    return std::move(*this).get(key.strv());
-  }
-
-  template <template <class> class RefCount>
-  basic_heap<RefCount> basic_heap<RefCount>::get(shim::string_view key) const {
-    // Use our transparent comparator to find the pair without constructing
-    // a temporary heap.
-    auto& fields = get_fields();
-    auto found = fields.find(key);
-    if (found == fields.end()) return basic_heap::make_null();
-    else return found->second;
-  }
-
-  template <template <class> class RefCount>
-  basic_buffer<RefCount> basic_buffer<RefCount>::get(shim::string_view key) const& {
-    return basic_buffer(detail::get_object<RefCount>(raw)->get_value(key), buffer_ref);
-  }
-
-  template <template <class> class RefCount>
-  basic_packet<RefCount> basic_packet<RefCount>::get(shim::string_view key) const& {
-    return shim::visit([&] (auto& v) -> basic_packet { return v.get(key); }, impl);
-  }
-
-  template <template <class> class RefCount>
-  template <template <class> class, class>
-  basic_buffer<RefCount>&& basic_buffer<RefCount>::get(shim::string_view key) && {
-    raw = detail::get_object<RefCount>(raw)->get_value(key);
-    if (is_null()) buffer_ref = nullptr;
-    return std::move(*this);
-  }
-
-  template <template <class> class RefCount>
-  template <template <class> class, class>
-  basic_packet<RefCount>&& basic_packet<RefCount>::get(shim::string_view key) && {
-    shim::visit([&] (auto& v) { v = std::move(v).get(key); }, impl);
-    return std::move(*this);
-  }
-
-  template <template <class> class RefCount>
-  template <class String, class T, class>
-  basic_heap<RefCount> basic_heap<RefCount>::get_or(basic_string<String> const& key, T&& opt) const {
-    return get_or(key.strv(), std::forward<T>(opt));
-  }
-
-  template <template <class> class RefCount>
-  template <class String, class T, class>
-  basic_packet<RefCount> basic_packet<RefCount>::get_or(basic_string<String> const& key, T&& opt) const {
-    return get_or(key.strv(), std::forward<T>(opt));
-  }
-
-  template <template <class> class RefCount>
-  template <class T, class>
-  basic_heap<RefCount> basic_heap<RefCount>::get_or(shim::string_view key, T&& opt) const {
-    if (is_object() && has_key(key)) return get(key);
-    else return convert::cast<basic_heap>(std::forward<T>(opt));
-  }
-
-  template <template <class> class RefCount>
-  template <class T, class>
-  basic_packet<RefCount> basic_packet<RefCount>::get_or(shim::string_view key, T&& opt) const {
-    if (is_object() && has_key(key)) return get(key);
-    else return convert::cast<basic_packet>(std::forward<T>(opt));
   }
 
   template <class Object>
@@ -683,37 +187,10 @@ namespace dart {
     return val.get_nested(path, separator);
   }
 
-  template <template <class> class RefCount>
-  basic_heap<RefCount> basic_heap<RefCount>::get_nested(shim::string_view path, char separator) const {
-    return detail::get_nested_impl(*this, path, separator);
-  }
-
-  template <template <class> class RefCount>
-  basic_buffer<RefCount> basic_buffer<RefCount>::get_nested(shim::string_view path, char separator) const {
-    return detail::get_nested_impl(*this, path, separator);
-  }
-
-  template <template <class> class RefCount>
-  basic_packet<RefCount> basic_packet<RefCount>::get_nested(shim::string_view path, char separator) const {
-    return shim::visit([&] (auto& v) -> basic_packet { return v.get_nested(path, separator); }, impl);
-  }
-
   template <class Object>
   template <class KeyType, class>
   auto basic_object<Object>::at(KeyType const& key) const& -> value_type {
     return val.at(key);
-  }
-
-  template <template <class> class RefCount>
-  template <class String>
-  basic_heap<RefCount> basic_heap<RefCount>::at(basic_string<String> const& key) const {
-    return at(key.strv());
-  }
-
-  template <template <class> class RefCount>
-  template <class String>
-  basic_buffer<RefCount> basic_buffer<RefCount>::at(basic_string<String> const& key) const& {
-    return at(key.strv());
   }
 
   template <class Object>
@@ -722,101 +199,10 @@ namespace dart {
     return std::move(val).at(key);
   }
 
-  template <template <class> class RefCount>
-  template <class String, template <class> class, class>
-  basic_buffer<RefCount>&& basic_buffer<RefCount>::at(basic_string<String> const& key) && {
-    return std::move(*this).at(key.strv());
-  }
-
-  template <template <class> class RefCount>
-  template <class String>
-  basic_packet<RefCount> basic_packet<RefCount>::at(basic_string<String> const& key) const& {
-    return at(key.strv());
-  }
-
-  template <template <class> class RefCount>
-  template <class String, template <class> class, class>
-  basic_packet<RefCount>&& basic_packet<RefCount>::at(basic_string<String> const& key) && {
-    return std::move(*this).at(key.strv());
-  }
-
-  template <template <class> class RefCount>
-  basic_heap<RefCount> basic_heap<RefCount>::at(shim::string_view key) const {
-    // Use our transparent comparator to find the pair without constructing
-    // a temporary heap.
-    auto& fields = get_fields();
-    auto found = fields.find(key);
-    if (found == fields.end()) throw std::out_of_range("dart::heap does not contain requested mapping");
-    return found->second;
-  }
-
-  template <template <class> class RefCount>
-  basic_buffer<RefCount> basic_buffer<RefCount>::at(shim::string_view key) const& {
-    return basic_buffer(detail::get_object<RefCount>(raw)->at_value(key), buffer_ref);
-  }
-
-  template <template <class> class RefCount>
-  basic_packet<RefCount> basic_packet<RefCount>::at(shim::string_view key) const& {
-    return shim::visit([&] (auto& v) -> basic_packet { return v.at(key); }, impl);
-  }
-
-  template <template <class> class RefCount>
-  template <template <class> class, class>
-  basic_buffer<RefCount>&& basic_buffer<RefCount>::at(shim::string_view key) && {
-    raw = detail::get_object<RefCount>(raw)->at_value(key);
-    if (is_null()) buffer_ref = nullptr;
-    return std::move(*this);
-  }
-
-  template <template <class> class RefCount>
-  template <template <class> class, class>
-  basic_packet<RefCount>&& basic_packet<RefCount>::at(shim::string_view key) && {
-    shim::visit([&] (auto& v) { v = std::move(v).at(key); }, impl);
-    return std::move(*this);
-  }
-
   template <class Object>
   template <class KeyType, class>
   auto basic_object<Object>::find(KeyType const& key) const -> iterator {
     return val.find(key);
-  }
-
-  template <template <class> class RefCount>
-  template <class String>
-  auto basic_heap<RefCount>::find(basic_string<String> const& key) const -> iterator {
-    return find(key.strv());
-  }
-
-  template <template <class> class RefCount>
-  template <class String>
-  auto basic_buffer<RefCount>::find(basic_string<String> const& key) const -> iterator {
-    return find(key.strv());
-  }
-
-  template <template <class> class RefCount>
-  template <class String>
-  auto basic_packet<RefCount>::find(basic_string<String> const& key) const -> iterator {
-    return find(key.strv());
-  }
-
-  template <template <class> class RefCount>
-  auto basic_heap<RefCount>::find(shim::string_view key) const -> iterator {
-    if (is_object()) {
-      auto deref = [] (auto& it) -> auto const& { return it->second; };
-      return iterator(detail::dynamic_iterator<RefCount>(try_get_fields()->find(key), deref));
-    } else {
-      throw type_error("dart::heap isn't an object and cannot find key-value mappings");
-    }
-  }
-
-  template <template <class> class RefCount>
-  auto basic_buffer<RefCount>::find(shim::string_view key) const -> iterator {
-    return iterator(*this, detail::get_object<RefCount>(raw)->get_it(key));
-  }
-
-  template <template <class> class RefCount>
-  auto basic_packet<RefCount>::find(shim::string_view key) const -> iterator {
-    return shim::visit([&] (auto& v) -> iterator { return v.find(key); }, impl);
   }
 
   template <class Object>
@@ -825,67 +211,9 @@ namespace dart {
     return val.find_key(key);
   }
 
-  template <template <class> class RefCount>
-  template <class String>
-  auto basic_heap<RefCount>::find_key(basic_string<String> const& key) const -> iterator {
-    return find_key(key.strv());
-  }
-
-  template <template <class> class RefCount>
-  template <class String>
-  auto basic_buffer<RefCount>::find_key(basic_string<String> const& key) const -> iterator {
-    return find_key(key.strv());
-  }
-
-  template <template <class> class RefCount>
-  template <class String>
-  auto basic_packet<RefCount>::find_key(basic_string<String> const& key) const -> iterator {
-    return find_key(key.strv());
-  }
-
-  template <template <class> class RefCount>
-  auto basic_heap<RefCount>::find_key(shim::string_view key) const -> iterator {
-    if (is_object()) {
-      auto deref = [] (auto& it) -> auto const& { return it->first; };
-      return iterator(detail::dynamic_iterator<RefCount>(try_get_fields()->find(key), deref));
-    } else {
-      throw type_error("dart::heap isn't an object and cannot find key-value mappings");
-    }
-  }
-
-  template <template <class> class RefCount>
-  auto basic_buffer<RefCount>::find_key(shim::string_view key) const -> iterator {
-    return iterator(*this, detail::get_object<RefCount>(raw)->get_key_it(key));
-  }
-
-  template <template <class> class RefCount>
-  auto basic_packet<RefCount>::find_key(shim::string_view key) const -> iterator {
-    return shim::visit([&] (auto& v) -> iterator { return v.find_key(key); }, impl);
-  }
-
   template <class Object>
   auto basic_object<Object>::keys() const -> std::vector<value_type> {
     return val.keys();
-  }
-
-  template <template <class> class RefCount>
-  std::vector<basic_heap<RefCount>> basic_heap<RefCount>::keys() const {
-    return detail::keys_impl(*this);
-  }
-
-  template <template <class> class RefCount>
-  std::vector<basic_buffer<RefCount>> basic_buffer<RefCount>::keys() const {
-    return detail::keys_impl(*this);
-  }
-
-  template <template <class> class RefCount>
-  std::vector<basic_packet<RefCount>> basic_packet<RefCount>::keys() const {
-    std::vector<basic_packet> packets;
-    packets.reserve(size());
-    shim::visit([&] (auto& v) {
-      for (auto& k : v.keys()) packets.push_back(std::move(k));
-    }, impl);
-    return packets;
   }
 
   template <class Object>
@@ -894,135 +222,9 @@ namespace dart {
     return val.has_key(key);
   }
 
-  template <template <class> class RefCount>
-  template <class String>
-  bool basic_heap<RefCount>::has_key(basic_string<String> const& key) const {
-    return has_key(key.strv());
-  }
-
-  template <template <class> class RefCount>
-  template <class String>
-  bool basic_buffer<RefCount>::has_key(basic_string<String> const& key) const {
-    return has_key(key.strv());
-  }
-
-  template <template <class> class RefCount>
-  template <class String>
-  bool basic_packet<RefCount>::has_key(basic_string<String> const& key) const {
-    return has_key(key.strv());
-  }
-
-  template <template <class> class RefCount>
-  bool basic_heap<RefCount>::has_key(shim::string_view key) const {
-    auto& fields = get_fields();
-    return fields.find(key) != fields.end();
-  }
-
-  template <template <class> class RefCount>
-  bool basic_buffer<RefCount>::has_key(shim::string_view key) const {
-    auto elem = detail::get_object<RefCount>(raw)->get_key(key, [] (auto) {});
-    return elem.buffer != nullptr;
-  }
-
-  template <template <class> class RefCount>
-  bool basic_packet<RefCount>::has_key(shim::string_view key) const {
-    return shim::visit([&] (auto& v) { return v.has_key(key); }, impl);
-  }
-
-  template <template <class> class RefCount>
-  template <class KeyType, class>
-  bool basic_heap<RefCount>::has_key(KeyType const& key) const {
-    if (key.get_type() == type::string) return has_key(key.strv());
-    else return false;
-  }
-
-  template <template <class> class RefCount>
-  template <class KeyType, class>
-  bool basic_buffer<RefCount>::has_key(KeyType const& key) const {
-    if (key.get_type() == type::string) return has_key(key.strv());
-    else return false;
-  }
-
-  template <template <class> class RefCount>
-  template <class KeyType, class>
-  bool basic_packet<RefCount>::has_key(KeyType const& key) const {
-    if (key.get_type() == type::string) return has_key(key.strv());
-    else return false;
-  }
-
   template <class Object>
   void basic_object<Object>::ensure_object(shim::string_view msg) const {
     if (!val.is_object()) throw type_error(msg.data());
-  }
-
-  template <template <class> class RefCount>
-  template <bool consume, class Span>
-  void basic_heap<RefCount>::inject_pairs(basic_heap& obj, Span pairs) {
-    // Validate that what we're being asked to do makes sense.
-    if (!obj.is_object()) throw type_error("dart::heap is not an object and cannot inject key-value pairs");
-
-    // Insert each of the requested pairs.
-    auto end = std::end(pairs);
-    auto it = std::begin(pairs);
-    while (it != end) {
-      auto& k = *it++;
-      auto& v = *it++;
-      if (consume) obj.insert(std::move(k), std::move(v));
-      else obj.insert(k, v);
-    }
-  }
-
-  template <template <class> class RefCount>
-  template <class Spannable>
-  basic_heap<RefCount> basic_heap<RefCount>::project_keys(Spannable const& keys) const {
-    // Validate that what we're being asked to do makes sense.
-    if (!is_object()) throw type_error("dart::heap is not an object an cannot project keys");
-
-    // Iterate and pull out.
-    auto obj = make_object();
-    for (auto& key : keys) if (has_key(key)) obj.add_field(key, get(key));
-    return obj;
-  }
-
-  template <template <class> class RefCount>
-  template <class Deref>
-  auto basic_heap<RefCount>::erase_key_impl(shim::string_view key, Deref&& deref, fields_type safeguard)
-    -> iterator
-  {
-    // Make sure we copy out if our heap is shared.
-    copy_on_write(safeguard ? 2 : 1);
-
-    // Try to locate the key.
-    auto& fields = get_fields();
-    auto new_it = fields.find(key);
-
-    // No longer need to access the key, release the safeguard.
-    safeguard.reset();
-
-    // Erase if we found it.
-    if (new_it != fields.end()) new_it = fields.erase(new_it);
-    return detail::dynamic_iterator<RefCount> {new_it, std::forward<Deref>(deref)};
-  }
-
-  template <template <class> class RefCount>
-  shim::string_view basic_heap<RefCount>::iterator_key(iterator pos) const {
-    using fields_layout = typename detail::dynamic_iterator<RefCount>::fields_layout;
-    return shim::visit(
-      shim::compose_together(
-        [] (fields_type const&, fields_layout& layout) -> shim::string_view {
-          return layout.it->first.strv();
-        },
-        [] (elements_type const&, auto&) -> shim::string_view {
-          throw type_error("dart::heap is an array, and cannot perform object operations");
-        },
-        [] (auto&, auto&) -> shim::string_view {
-          throw type_error("dart::heap is not an object, "
-            "or was provided an invalid iterator, and cannot perform object operations");
-        }
-      ),
-      data,
-      pos.impl->impl
-    );
   }
 
   namespace detail {
