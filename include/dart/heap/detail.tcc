@@ -27,10 +27,10 @@ namespace dart {
       shim::compose_together(
         mono_visitor {},
         [this] (shim::variant_alternative_t<1, TypeData> const& fields) {
-          data = fields_rc_type {fields.raw()};
+          data = fields_type {fields.raw()};
         },
         [this] (shim::variant_alternative_t<2, TypeData> const& elems) {
-          data = elements_rc_type {elems.raw()};
+          data = elements_type {elems.raw()};
         },
         [this] (shim::variant_alternative_t<3, TypeData> const& str) {
           data = dynamic_string_layout {str.ptr, str.len};

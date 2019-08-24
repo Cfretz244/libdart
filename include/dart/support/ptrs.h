@@ -427,7 +427,7 @@ namespace dart {
 
         explicit operator bool() const noexcept(refcount_traits<refcount_type>::is_nothrow_unwrappable::value);
 
-        explicit operator refcount_type() const;
+        operator refcount_type const&() const;
 
         /*----- Public API -----*/
 
