@@ -2,7 +2,7 @@ Dart
 ==============
 
 [![Build Status](https://travis-ci.com/target/libdart.svg?branch=master)](https://travis-ci.com/target/libdart)
-### A High Performance, Network Optimized, JSON Manipulation Library
+### A High Performance, Easy to Use, Networking Optimized, JSON Library
 **Dart** is both a wire-level binary `JSON` protocol, along with a high performance,
 and surprisingly high level, `C++` API to interact with that `JSON`.
 It is primarily optimized for on-the-wire representation size along with
@@ -27,24 +27,80 @@ and out of, `JSON`.
 As **Dart** can also be useful when working with config files, it also supports parsing
 `YAML` via [libyaml](https://github.com/yaml/libyaml.git).
 
-## Performance
-![Dart vs Google Flexbuffers vs sajson](benchmark/dart.png)
-For more in depth performance details, see our [performance](PERFORMANCE.md) document,
-for those interested in where this performance comes from, see our
-[implementation](IMPLEMENTATION.md) document.
+## Quick Start
+This readme covers a wide variety of information for the library, but to give some motivating
+examples, here are some at-a-glance examples.
 
-`JSON` parsing performance is a big enough topic to be given its own document, which
-can be found here: [parsing performance](PARSING.md).
+**Dart** makes parsing a `JSON` string dead-simple, and crazy fast:
+```c++
+#include <dart.h>
+#include <iostream>
 
-## API Stability
-**Dart** has been an ongoing development effort over the last few years, and its API has
-morphed several times during that period. All of the network-level logic is very stable
-and has not changed significantly in some time, but the user-facing API is still being
-finalized and may change some before the first release.
+int main() {
+  // Parse JSON at half a gigabyte/second, and print.
+  // Fancy string literal is a raw literal.
+  auto json = dart::parse(R"({"msg":"hello from dart!"})");
+  std::cout << json["msg"].to_json() << std::endl;
+}
 
-The library is currently set at version `0.9.0`, and after a period of a few weeks, collecting
-user/community feedback on the API, the project will transition to its `1.0.0` release,
-at which point the API will be considered stable.
+// => "hello from dart!"
+```
+
+**Dart** automatically understands most built-in and STL types
+(and can be extended to work with any type), making it extremely
+easy and natural to efficiently build `JSON`.
+```c++
+#include <dart.h>
+#include <iostream>
+
+int main() {
+  // A simple example with some built-in types.
+  dart::array arr {1, "two", 3.14159, true, nullptr};
+  std::cout << arr << std::endl;
+
+  // A more complex example with some complex STL types.
+  using value = std::variant<double, std::string>;
+  using sequence = std::vector<value>;
+  using map = std::map<std::string, sequence>;
+
+  // Dart recursively decomposes the type and figures it out.
+  arr.push_back(map {{"args", {3.14159, 2.99792, "top", "secret"}}});
+  std::cout << arr << std::endl;
+}
+
+// => [1,"two",3.14159,true,null]
+// => [1,"two",3.14159,true,null,{"args":[3.14159,2.99792,"top","secret"]}]
+```
+
+The **Dart** container types (`dart::object` and `dart::array`) model the API
+of the STL equivalents, allowing for extremely expressive, idiomatic, and type-safe
+interaction with a dynamically typed notation language from a statically typed
+programming language:
+```c++
+#include <dart.h>
+#include <iostream>
+#include <algorithm>
+
+int main() {
+  // Build the same array as in the last example, but incrementally.
+  dart::array arr;
+  arr.push_back("two").push_front(1);
+  arr.insert(2, 3.14159);
+  arr.resize(5, true);
+  arr.set(4, nullptr);
+  std::cout << arr << std::endl;
+
+  // Search for a particular element and erase the rest.
+  auto it = std::find(std::begin(arr), std::end(arr), 3.14159);
+  while (it != std::end(arr)) {
+    it = arr.erase(it);
+  }
+  std::cout << arr << std::endl;
+}
+
+// => [1,"two",3.14159,true,null]
+// => [1, "two"]
+```
 
 ## Compilation and Installation
 **Dart** is implemented using modern C++, and requires both Microsoft's Guidelines
@@ -67,7 +123,10 @@ cd build
 
 # Build, test, and install (assuming a 4 core machine).
 # Running tests isn't mandatory, but is highly recommended.
-cmake ..
+# Dart is primarily a header-only library, but also includes
+# an ABI-stable pure C bindings layer which can be built and
+# installed with -Dbuild_abi=ON
+cmake .. # -Dbuild_abi=ON
 make -j 4
 ctest
 make install
@@ -78,39 +137,33 @@ make install
 cd ..
 doxygen
 ```
-
-On Windows, assuming Visual Studio 2019 is installed, it can be built in the
-following way:
-```bash
-# Clone it down.
-git clone https://github.com/target/libdart.git
-cd libdart
-
-# Create the cmake build directory and prepare a build
-# with tests enabled
-mkdir build
-cd build
-
-# Windows doesn't have standardized directories for storing
-# system headers like Linux/macOS, and so you need to provide
-# the path to the GSL installation to use.
-# If performing this step in Visual Studio, it can be configured
-# graphically.
-cmake .. -DCMAKE_INCLUDE_PATH="C:\Path\To\Guidelines\Support\Library\include"
-cmake --build . --config Release
-ctest -C Release
-
-# We've tested things, now install the library itself.
-# The install location can be customized using
-# -DCMAKE_INSTALL_PREFIX
-cmake --install . --config Release
-```
+For instructions on building for windows, see our [windows](WINDOWS.md) build instructions.
 
 **Dart** can optionally leverage [RapidJSON](https://github.com/Tencent/rapidjson),
 [sajson](https://github.com/chadaustin/sajson), 
 and [libyaml](https://github.com/yaml/libyaml.git), and will attempt to detect installations
 automatically while building, but can be independently specified with `-DDART_HAS_RAPIDJSON`,
 `-DDART_USE_SAJSON`, and `-DDART_HAS_YAML` preprocessor flags.
+
+
+## Performance
+**TL;DR**: **Dart**'s performance is excellent, but to see detailed breakdowns for different
+workflows, see our [performance](PERFORMANCE.md) document.
+For those interested in where this performance comes from, see our
+[implementation](IMPLEMENTATION.md) document.
+
+`JSON` parsing performance is a big enough topic to be given its own document, which
+can be found here: [parsing performance](PARSING.md).
+
+## API Stability
+**Dart** has been an ongoing development effort over the last few years, and its API has
+morphed several times during that period. All of the network-level logic is very stable
+and has not changed significantly in some time, but the user-facing API is still being
+finalized and may change some before the first release.
+
+The library is currently set at version `0.9.0`, and after a period of a few weeks, collecting
+user/community feedback on the API, the project will transition to its `1.0.0` release,
+at which point the API will be considered stable.
 
 ## Basic Usage
 Overly detailed usage examples can be obtained from the `test/` directory, or by building the
