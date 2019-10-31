@@ -1,7 +1,7 @@
 ## Dart Performance
 
 **TL;DR**:
-Dart's performance is [excellent](#results).
+Skip to the [results](#results).
 
 **Long Version**:
 
@@ -43,6 +43,12 @@ STL containers and conversion operators to other **Dart** types), and
 is guaranteed to be stored contiguously as a flattened buffer of bytes
 (accessible via `dart::buffer::get_bytes` or `dart::buffer::dup_bytes`)
 immediately ready for distribution over a socket/file/shared memory queue/etc.
+
+Read-only view types, like `dart::packet::view`, `dart::heap::view`,
+and `dart::buffer::view`, will perform largely similarly to their traditional
+counterparts, however, they do not participate in reference counting, and
+so can be used to selectively disable reference counting and its associated
+cost within a particular scope.
 
 ## Measuring Dart Performance
 Given the API topology mentioned above, all performance validation cases
