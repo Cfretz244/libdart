@@ -64,6 +64,17 @@ install:
 # Build matrix
 matrix:
   include:
+    - os: osx
+      compiler: clang
+      osx_image: xcode8.3
+    - os: osx
+      compiler: clang
+      osx_image: xcode9.4
+    - os: osx
+      compiler: clang
+      osx_image: xcode10.1
+      env:
+        GEN_COVERAGE: true
     - env: VERSION=5 ARCH=powerpc-linux
       os: linux
       compiler: gcc
@@ -180,17 +191,6 @@ matrix:
           packages:
             - rapidjson-dev
             - g++-8
-    - os: osx
-      compiler: clang
-      osx_image: xcode8.3
-    - os: osx
-      compiler: clang
-      osx_image: xcode9.4
-    - os: osx
-      compiler: clang
-      osx_image: xcode10.1
-      env:
-        GEN_COVERAGE: true
 
 # Build and run.
 script:

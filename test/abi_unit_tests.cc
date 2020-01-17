@@ -327,6 +327,62 @@ SCENARIO("objects can insert any type", "[abi unit]") {
         REQUIRE(dart_get_type(&nested) == DART_NULL);
       }
     }
+
+    WHEN("we insert a string") {
+      dart_obj_insert_str(&obj, "key", "value");
+      THEN("the string is reachable and has the correct value") {
+        auto str = dart_obj_get(&obj, "key");
+        auto guard = make_scope_guard([&] { dart_destroy(&str); });
+
+        REQUIRE(dart_is_str(&str));
+        REQUIRE(dart_size(&str) == strlen("value"));
+        REQUIRE(dart_str_get(&str) == "value"s);
+      }
+    }
+
+    WHEN("we insert an integer") {
+      dart_obj_insert_int(&obj, "int", 6);
+      THEN("the string is reachable and has the correct value") {
+        auto integer = dart_obj_get(&obj, "int");
+        auto guard = make_scope_guard([&] { dart_destroy(&integer); });
+
+        REQUIRE(dart_is_int(&integer));
+        REQUIRE(dart_int_get(&integer) == 6);
+      }
+    }
+
+    WHEN("we insert a decimal") {
+      dart_obj_insert_dcm(&obj, "pi", 3.14159);
+      THEN("the string is reachable and has the correct value") {
+        auto dcm = dart_obj_get(&obj, "pi");
+        auto guard = make_scope_guard([&] { dart_destroy(&dcm); });
+
+        REQUIRE(dart_is_dcm(&dcm));
+        REQUIRE(dart_dcm_get(&dcm) == 3.14159);
+      }
+    }
+
+    WHEN("we insert a boolean") {
+      dart_obj_insert_bool(&obj, "truth", true);
+      THEN("the string is reachable and has the correct value") {
+        auto boolean = dart_obj_get(&obj, "truth");
+        auto guard = make_scope_guard([&] { dart_destroy(&boolean); });
+
+        REQUIRE(dart_is_bool(&boolean));
+        REQUIRE(dart_bool_get(&boolean) == true);
+      }
+    }
+
+    WHEN("we insert a null") {
+      dart_obj_insert_null(&obj, "none");
+      THEN("the null is reachable") {
+        auto null = dart_obj_get(&obj, "none");
+
+        REQUIRE(dart_is_null(&null));
+        REQUIRE(dart_obj_has_key(&obj, "none"));
+        REQUIRE(dart_get_type(&null) == DART_NULL);
+      }
+    }
   }
 }
 
