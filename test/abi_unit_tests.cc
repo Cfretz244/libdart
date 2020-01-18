@@ -7,6 +7,7 @@
 /*----- Local Includes -----*/
 
 #include <string.h>
+#include <iostream>
 #include "../include/dart/abi.h"
 #include "../include/extern/catch.h"
 
@@ -377,10 +378,112 @@ SCENARIO("objects can insert any type", "[abi unit]") {
       dart_obj_insert_null(&obj, "none");
       THEN("the null is reachable") {
         auto null = dart_obj_get(&obj, "none");
+        auto guard = make_scope_guard([&] { dart_destroy(&null); });
 
         REQUIRE(dart_is_null(&null));
         REQUIRE(dart_obj_has_key(&obj, "none"));
         REQUIRE(dart_get_type(&null) == DART_NULL);
+      }
+    }
+  }
+}
+
+SCENARIO("objects can assign to existing indices", "[abi unit]") {
+  GIVEN("an object with existing values") {
+    auto obj = dart_obj_init_va("sidbn", "hello", "world", "age", 27, "c", 2.99792, "lies", false, "none");
+    auto guard = make_scope_guard([&] { dart_destroy(&obj); });
+
+    WHEN("the string value is assigned to") {
+      dart_obj_set_str(&obj, "hello", "life");
+      THEN("it takes on the value we expect") {
+        auto str = dart_obj_get(&obj, "hello");
+        auto guard = make_scope_guard([&] { dart_destroy(&str); });
+        REQUIRE(dart_is_str(&str));
+        REQUIRE(dart_size(&str) == strlen("life"));
+        REQUIRE(dart_str_get(&str) == "life"s);
+      }
+    }
+
+    WHEN("the integer value is assigned to") {
+      dart_obj_set_int(&obj, "age", 72);
+      THEN("it takes on the value we expect") {
+        auto integer = dart_obj_get(&obj, "age");
+        auto guard = make_scope_guard([&] { dart_destroy(&integer); });
+        REQUIRE(dart_is_int(&integer));
+        REQUIRE(dart_int_get(&integer) == 72);
+      }
+    }
+
+    WHEN("the decimal value is assigned to") {
+      dart_obj_set_dcm(&obj, "c", 3.0);
+      THEN("it takes on the value we expect") {
+        auto dcm = dart_obj_get(&obj, "c");
+        auto guard = make_scope_guard([&] { dart_destroy(&dcm); });
+        REQUIRE(dart_is_dcm(&dcm));
+        REQUIRE(dart_dcm_get(&dcm) == 3.0);
+      }
+    }
+
+    WHEN("the decimal value is assigned to") {
+      dart_obj_set_bool(&obj, "lies", true);
+      THEN("it takes on the value we expect") {
+        auto boolean = dart_obj_get(&obj, "lies");
+        auto guard = make_scope_guard([&] { dart_destroy(&boolean); });
+        REQUIRE(dart_is_bool(&boolean));
+        REQUIRE(dart_bool_get(&boolean) == true);
+      }
+    }
+
+    WHEN("the null is assigned to") {
+      dart_obj_set_str(&obj, "none", "some");
+      THEN("it takes on the value we expect") {
+        auto str = dart_obj_get(&obj, "none");
+        auto guard = make_scope_guard([&] { dart_destroy(&str); });
+        REQUIRE(dart_is_str(&str));
+        REQUIRE(dart_str_get(&str) == "some"s);
+      }
+    }
+  }
+}
+
+SCENARIO("objects can erase existing indices", "[abi unit]") {
+  GIVEN("an object with existing values") {
+    auto obj = dart_obj_init_va("sidbn", "hello", "world", "age", 27, "c", 2.99792, "lies", false, "none");
+    auto guard = make_scope_guard([&] { dart_destroy(&obj); });
+
+    WHEN("the string value is erased") {
+      dart_obj_erase(&obj, "hello");
+      THEN("it takes on the value we expect") {
+        auto str = dart_obj_get(&obj, "hello");
+        auto guard = make_scope_guard([&] { dart_destroy(&str); });
+        REQUIRE(dart_is_null(&str));
+      }
+    }
+
+    WHEN("the integer value is assigned to") {
+      dart_obj_erase(&obj, "age");
+      THEN("it takes on the value we expect") {
+        auto integer = dart_obj_get(&obj, "age");
+        auto guard = make_scope_guard([&] { dart_destroy(&integer); });
+        REQUIRE(dart_is_null(&integer));
+      }
+    }
+
+    WHEN("the decimal value is assigned to") {
+      dart_obj_erase(&obj, "c");
+      THEN("it takes on the value we expect") {
+        auto dcm = dart_obj_get(&obj, "c");
+        auto guard = make_scope_guard([&] { dart_destroy(&dcm); });
+        REQUIRE(dart_is_null(&dcm));
+      }
+    }
+
+    WHEN("the decimal value is assigned to") {
+      dart_obj_erase(&obj, "lies");
+      THEN("it takes on the value we expect") {
+        auto boolean = dart_obj_get(&obj, "lies");
+        auto guard = make_scope_guard([&] { dart_destroy(&boolean); });
+        REQUIRE(dart_is_null(&boolean));
       }
     }
   }

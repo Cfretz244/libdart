@@ -590,6 +590,7 @@ namespace {
       case 'b':
         return parse_type::boolean;
       case ' ':
+      case 'n':
         return parse_type::null;
       default:
         return parse_type::invalid;
