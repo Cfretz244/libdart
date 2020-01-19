@@ -213,14 +213,25 @@ TEST_CASE("dart_packet parses JSON via RapidJSON", "[json unit]") {
   for (size_t index = 0; index < parsed.size(); ++index) {
     // Construct the packet.
     auto& packet = parsed[index];
-    auto pkt = dart_from_json(packets[index].data());
-    auto guard_one = make_scope_guard([&] { dart_destroy(&pkt); });
+    auto pktone = dart_from_json(packets[index].data());
+    auto pkttwo = dart_from_json_rc(DART_RC_SAFE, packets[index].data());
+    auto pktthree = dart_from_json_len(packets[index].data(), packets[index].size());
+    auto pktfour = dart_from_json_len_rc(DART_RC_SAFE, packets[index].data(), packets[index].size());
+    auto guard_one = make_scope_guard([&] {
+      dart_destroy(&pktfour);
+      dart_destroy(&pktthree);
+      dart_destroy(&pkttwo);
+      dart_destroy(&pktone);
+    });
 
     // Validate against the reference.
-    compare_rj_dart_abi(packet, &pkt);
+    compare_rj_dart_abi(packet, &pktone);
+    compare_rj_dart_abi(packet, &pkttwo);
+    compare_rj_dart_abi(packet, &pktthree);
+    compare_rj_dart_abi(packet, &pktfour);
 
     // Validate the underlying buffer.
-    auto fin = dart_finalize(&pkt);
+    auto fin = dart_finalize(&pktone);
     auto dup = dart_take_bytes(dart_dup_bytes(&fin, nullptr));
     auto guard_two = make_scope_guard([&] {
       dart_destroy(&dup);
@@ -230,7 +241,7 @@ TEST_CASE("dart_packet parses JSON via RapidJSON", "[json unit]") {
 
     // Generate JSON, reparse it, and validate it's still the same.
     rj::Document rj_dup;
-    auto* json = dart_to_json(&pkt, nullptr);
+    auto* json = dart_to_json(&pktone, nullptr);
     auto guard_three = make_scope_guard([=] { free(json); });
 
     rj_dup.Parse(json);

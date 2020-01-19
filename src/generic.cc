@@ -4,7 +4,12 @@
 
 /*----- Globals -----*/
 
-thread_local std::string errmsg {};
+namespace dart {
+  namespace detail {
+    thread_local std::string errmsg {};
+  }
+}
+
 
 /*----- Helpers -----*/
 
@@ -654,7 +659,7 @@ extern "C" {
   dart_packet_t dart_init() {
     // Cannot meaningfully fail.
     dart_packet_t dst;
-    dart_init_rc_err(&dst, DART_RC_SAFE);
+    dart_init_err(&dst);
     return dst;
   }
 
@@ -1616,7 +1621,7 @@ extern "C" {
   }
 
   char const* dart_get_error() {
-    return errmsg.data();
+    return dart::detail::errmsg.data();
   }
 
 }

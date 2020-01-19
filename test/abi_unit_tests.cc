@@ -25,6 +25,8 @@ struct scope_guard : Func {
       (*this)();
     } catch (...) {
       // Oops...
+      std::cerr << "A scope guard block threw an unexpected exception!" << std::endl;
+      std::abort();
     }
   }
 };
@@ -40,7 +42,7 @@ using namespace std::string_literals;
 
 /*----- Tests -----*/
 
-SCENARIO("objects are regular types", "[abi unit]") {
+SCENARIO("dart packets are regular types", "[abi unit]") {
   GIVEN("a default constructed object") {
     // Get an object, make sure it's cleaned up.
     auto pkt = dart_obj_init();
@@ -67,9 +69,9 @@ SCENARIO("objects are regular types", "[abi unit]") {
         // Grab each key for validation, make sure it's cleaned up.
         REQUIRE(dart_size(&pkt) == 4U);
         auto key_one = dart_obj_get(&pkt, "hello");
-        auto key_two = dart_obj_get(&pkt, "int");
+        auto key_two = dart_obj_get_len(&pkt, "int", strlen("int"));
         auto key_three = dart_obj_get(&pkt, "pi");
-        auto key_four = dart_obj_get(&pkt, "bool");
+        auto key_four = dart_obj_get_len(&pkt, "bool", strlen("bool"));
         auto guard = make_scope_guard([&] {
           dart_destroy(&key_one);
           dart_destroy(&key_two);
@@ -146,7 +148,7 @@ SCENARIO("objects are regular types", "[abi unit]") {
     }
 
     WHEN("aggregates are inserted") {
-      auto nested = dart_obj_init();
+      auto nested = dart_obj_init_rc(DART_RC_SAFE);
       auto guard = make_scope_guard([&] { dart_destroy(&nested); });
       dart_obj_insert_str(&nested, "a nested", "string");
       dart_obj_insert_dart(&pkt, "nested", &nested);
@@ -196,6 +198,254 @@ SCENARIO("objects are regular types", "[abi unit]") {
         REQUIRE(!dart_is_obj(&pkt));
         REQUIRE(dart_is_null(&pkt));
         REQUIRE(dart_get_type(&pkt) == DART_NULL);
+      }
+    }
+  }
+
+  GIVEN("a default constructed array") {
+    // Get an array, make sure it's cleaned up.
+    auto pkt = dart_arr_init();
+    auto guard = make_scope_guard([&] { dart_destroy(&pkt); });
+
+    WHEN("the array is queried") {
+      THEN("its basic properties make sense") {
+        REQUIRE(dart_size(&pkt) == 0);
+        REQUIRE(dart_is_arr(&pkt));
+        REQUIRE(pkt.rtti.p_id == DART_PACKET);
+        REQUIRE(pkt.rtti.rc_id == DART_RC_SAFE);
+        REQUIRE(dart_get_type(&pkt) == DART_ARRAY);
+      }
+    }
+
+    WHEN("arrays are copied") {
+      auto copy = dart_copy(&pkt);
+      auto guard = make_scope_guard([&] { dart_destroy(&copy); });
+
+      THEN("it is indistinguishable from the original") {
+        REQUIRE(dart_equal(&copy, &pkt));
+        REQUIRE(dart_size(&copy) == dart_size(&pkt));
+        REQUIRE(dart_get_type(&copy) == dart_get_type(&pkt));
+      }
+
+      WHEN("modifications are made") {
+        dart_arr_insert_str(&copy, 0, "world");
+        THEN("the two are distinguishable") {
+          REQUIRE(!dart_equal(&copy, &pkt));
+          REQUIRE(dart_size(&copy) != dart_size(&pkt));
+          REQUIRE(dart_get_type(&copy) == dart_get_type(&pkt));
+        }
+      }
+    }
+
+    WHEN("arrays are moved") {
+      auto moved = dart_move(&pkt);
+      auto guard = make_scope_guard([&] { dart_destroy(&moved); });
+      THEN("the new array steals the contents of the old") {
+        REQUIRE(dart_size(&moved) == 0);
+        REQUIRE(dart_is_arr(&moved));
+        REQUIRE(dart_get_type(&moved) == DART_ARRAY);
+        REQUIRE(!dart_is_arr(&pkt));
+        REQUIRE(dart_is_null(&pkt));
+        REQUIRE(dart_get_type(&pkt) == DART_NULL);
+      }
+    }
+  }
+
+  GIVEN("a default constructed string") {
+    // Get an array, make sure it's cleaned up.
+    auto pkt = dart_str_init("");
+    auto guard = make_scope_guard([&] { dart_destroy(&pkt); });
+
+    WHEN("the string is queried") {
+      THEN("its basic properties make sense") {
+        REQUIRE(dart_size(&pkt) == 0);
+        REQUIRE(dart_is_str(&pkt));
+        REQUIRE(dart_str_get(&pkt) == ""s);
+        REQUIRE(pkt.rtti.p_id == DART_PACKET);
+        REQUIRE(pkt.rtti.rc_id == DART_RC_SAFE);
+        REQUIRE(dart_get_type(&pkt) == DART_STRING);
+      }
+    }
+
+    WHEN("strings are copied") {
+      auto copy = dart_copy(&pkt);
+      auto guard = make_scope_guard([&] { dart_destroy(&copy); });
+
+      THEN("it is indistinguishable from the original") {
+        REQUIRE(dart_equal(&copy, &pkt));
+        REQUIRE(dart_size(&copy) == dart_size(&pkt));
+        REQUIRE(dart_get_type(&copy) == dart_get_type(&pkt));
+      }
+    }
+
+    WHEN("strings are moved") {
+      auto moved = dart_move(&pkt);
+      auto guard = make_scope_guard([&] { dart_destroy(&moved); });
+      THEN("the new string steals the contents of the old") {
+        REQUIRE(dart_size(&moved) == 0);
+        REQUIRE(dart_is_str(&moved));
+        REQUIRE(dart_get_type(&moved) == DART_STRING);
+        REQUIRE(!dart_is_str(&pkt));
+        REQUIRE(dart_is_null(&pkt));
+        REQUIRE(dart_get_type(&pkt) == DART_NULL);
+      }
+    }
+  }
+
+  GIVEN("a default constructed integer") {
+    // Get an array, make sure it's cleaned up.
+    auto pkt = dart_int_init(0);
+    auto guard = make_scope_guard([&] { dart_destroy(&pkt); });
+
+    WHEN("the integer is queried") {
+      THEN("its basic properties make sense") {
+        REQUIRE(dart_is_int(&pkt));
+        REQUIRE(dart_int_get(&pkt) == 0);
+        REQUIRE(pkt.rtti.p_id == DART_PACKET);
+        REQUIRE(pkt.rtti.rc_id == DART_RC_SAFE);
+        REQUIRE(dart_get_type(&pkt) == DART_INTEGER);
+      }
+    }
+
+    WHEN("integers are copied") {
+      auto copy = dart_copy(&pkt);
+      auto guard = make_scope_guard([&] { dart_destroy(&copy); });
+
+      THEN("it is indistinguishable from the original") {
+        REQUIRE(dart_equal(&copy, &pkt));
+        REQUIRE(dart_get_type(&copy) == dart_get_type(&pkt));
+      }
+    }
+
+    WHEN("integers are moved") {
+      auto moved = dart_move(&pkt);
+      auto guard = make_scope_guard([&] { dart_destroy(&moved); });
+      THEN("the new integer steals the contents of the old") {
+        REQUIRE(dart_is_int(&moved));
+        REQUIRE(dart_get_type(&moved) == DART_INTEGER);
+        REQUIRE(dart_int_get(&moved) == 0);
+        REQUIRE(!dart_is_int(&pkt));
+        REQUIRE(dart_is_null(&pkt));
+        REQUIRE(dart_get_type(&pkt) == DART_NULL);
+      }
+    }
+  }
+
+  GIVEN("a default constructed decimal") {
+    // Get an array, make sure it's cleaned up.
+    auto pkt = dart_dcm_init(0.0);
+    auto guard = make_scope_guard([&] { dart_destroy(&pkt); });
+
+    WHEN("the decimal is queried") {
+      THEN("its basic properties make sense") {
+        REQUIRE(dart_is_dcm(&pkt));
+        REQUIRE(dart_dcm_get(&pkt) == 0.0);
+        REQUIRE(pkt.rtti.p_id == DART_PACKET);
+        REQUIRE(pkt.rtti.rc_id == DART_RC_SAFE);
+        REQUIRE(dart_get_type(&pkt) == DART_DECIMAL);
+      }
+    }
+
+    WHEN("decimals are copied") {
+      auto copy = dart_copy(&pkt);
+      auto guard = make_scope_guard([&] { dart_destroy(&copy); });
+
+      THEN("it is indistinguishable from the original") {
+        REQUIRE(dart_equal(&copy, &pkt));
+        REQUIRE(dart_get_type(&copy) == dart_get_type(&pkt));
+      }
+    }
+
+    WHEN("decimals are moved") {
+      auto moved = dart_move(&pkt);
+      auto guard = make_scope_guard([&] { dart_destroy(&moved); });
+      THEN("the new decimal steals the contents of the old") {
+        REQUIRE(dart_is_dcm(&moved));
+        REQUIRE(dart_get_type(&moved) == DART_DECIMAL);
+        REQUIRE(dart_dcm_get(&moved) == 0.0);
+        REQUIRE(!dart_is_dcm(&pkt));
+        REQUIRE(dart_is_null(&pkt));
+        REQUIRE(dart_get_type(&pkt) == DART_NULL);
+      }
+    }
+  }
+
+  GIVEN("a default constructed boolean") {
+    // Get an array, make sure it's cleaned up.
+    auto pkt = dart_bool_init(false);
+    auto guard = make_scope_guard([&] { dart_destroy(&pkt); });
+
+    WHEN("the bool is queried") {
+      THEN("its basic properties make sense") {
+        REQUIRE(dart_is_bool(&pkt));
+        REQUIRE(dart_bool_get(&pkt) == false);
+        REQUIRE(pkt.rtti.p_id == DART_PACKET);
+        REQUIRE(pkt.rtti.rc_id == DART_RC_SAFE);
+        REQUIRE(dart_get_type(&pkt) == DART_BOOLEAN);
+      }
+    }
+
+    WHEN("bools are copied") {
+      auto copy = dart_copy(&pkt);
+      auto guard = make_scope_guard([&] { dart_destroy(&copy); });
+
+      THEN("it is indistinguishable from the original") {
+        REQUIRE(dart_equal(&copy, &pkt));
+        REQUIRE(dart_get_type(&copy) == dart_get_type(&pkt));
+      }
+    }
+
+    WHEN("bools are moved") {
+      auto moved = dart_move(&pkt);
+      auto guard = make_scope_guard([&] { dart_destroy(&moved); });
+      THEN("the new bool steals the contents of the old") {
+        REQUIRE(dart_is_bool(&moved));
+        REQUIRE(dart_get_type(&moved) == DART_BOOLEAN);
+        REQUIRE(dart_bool_get(&moved) == false);
+        REQUIRE(!dart_is_bool(&pkt));
+        REQUIRE(dart_is_null(&pkt));
+        REQUIRE(dart_get_type(&pkt) == DART_NULL);
+      }
+    }
+  }
+
+  GIVEN("a default constructed null") {
+    // Get an array, make sure it's cleaned up.
+    auto pkt = dart_null_init();
+    auto guard = make_scope_guard([&] { dart_destroy(&pkt); });
+
+    WHEN("the null is queried") {
+      THEN("its basic properties make sense") {
+        REQUIRE(dart_is_null(&pkt));
+        REQUIRE(dart_bool_get(&pkt) == false);
+        REQUIRE(pkt.rtti.p_id == DART_PACKET);
+        REQUIRE(pkt.rtti.rc_id == DART_RC_SAFE);
+        REQUIRE(dart_get_type(&pkt) == DART_NULL);
+      }
+    }
+
+    WHEN("the null is copied") {
+      auto copy = dart_copy(&pkt);
+      auto guard = make_scope_guard([&] { dart_destroy(&copy); });
+
+      THEN("it is indistinguishable from the original") {
+        REQUIRE(dart_equal(&copy, &pkt));
+        REQUIRE(dart_get_type(&copy) == dart_get_type(&pkt));
+      }
+    }
+
+    WHEN("the null is moved") {
+      auto moved = dart_move(&pkt);
+      auto guard = make_scope_guard([&] { dart_destroy(&moved); });
+      THEN("null instances are indistinguishable") {
+        auto third = dart_init();
+        auto guard = make_scope_guard([&] { dart_destroy(&third); });
+
+        REQUIRE(dart_is_null(&moved));
+        REQUIRE(dart_is_null(&pkt));
+        REQUIRE(dart_equal(&moved, &pkt));
+        REQUIRE(dart_equal(&third, &pkt));
+        REQUIRE(dart_equal(&third, &moved));
       }
     }
   }
@@ -302,7 +552,7 @@ SCENARIO("objects can insert any type", "[abi unit]") {
     auto guard = make_scope_guard([&] { dart_destroy(&obj); });
 
     WHEN("we insert another dart type") {
-      auto nested = dart_obj_init_va("ss", "hello", "world", "yes", "no");
+      auto nested = dart_obj_init_va_rc(DART_RC_SAFE, "ss", "hello", "world", "yes", "no");
       auto guard = make_scope_guard([&] { dart_destroy(&nested); });
       dart_obj_insert_dart(&obj, "nested", &nested);
 
@@ -321,7 +571,8 @@ SCENARIO("objects can insert any type", "[abi unit]") {
     }
 
     WHEN("we take another dart type") {
-      auto nested = dart_obj_init_va("ss", "hello", "world", "yes", "no");
+      dart_packet_t nested;
+      dart_obj_init_va_err(&nested, "ss", "hello", "world", "yes", "no");
       auto guard = make_scope_guard([&] { dart_destroy(&nested); });
       dart_obj_insert_take_dart(&obj, "nested", &nested);
 
@@ -403,7 +654,8 @@ SCENARIO("objects can assign to existing indices", "[abi unit]") {
     auto guard = make_scope_guard([&] { dart_destroy(&obj); });
 
     WHEN("the nested object is assigned to") {
-      auto nested = dart_obj_init_va("s", "stop", "go");
+      dart_packet_t nested;
+      dart_obj_init_va_rc_err(&nested, DART_RC_SAFE, "s", "stop", "go");
       auto guard = make_scope_guard([&] { dart_destroy(&nested); });
       dart_obj_set_dart(&obj, "nested", &nested);
       THEN("it takes on the value we expect") {
@@ -606,8 +858,17 @@ SCENARIO("objects can be iterated over", "[abi unit]") {
         "decimal", 3.14159, "bool", 0, "str", "fixed", "Str", dyn, strlen(dyn));
     auto guard = make_scope_guard([&] { dart_destroy(&obj); });
 
+    WHEN("we default initialize an iterator") {
+      dart_iterator_t it;
+      dart_iterator_init_err(&it);
+      auto guard = make_scope_guard([&] { dart_iterator_destroy(&it); });
+      THEN("it goes nowhere") {
+        REQUIRE(dart_iterator_done(&it));
+      }
+    }
+
     WHEN("we create an iterator") {
-      // Initialize an iterator for our array.
+      // Initialize an iterator for our object.
       dart_iterator_t it;
       dart_iterator_init_from_err(&it, &obj);
 
@@ -624,11 +885,11 @@ SCENARIO("objects can be iterated over", "[abi unit]") {
         auto five = dart_iterator_get(&it);
         dart_iterator_next(&it);
         auto guard = make_scope_guard([&] {
-          dart_destroy(&one);
-          dart_destroy(&two);
-          dart_destroy(&three);
-          dart_destroy(&four);
           dart_destroy(&five);
+          dart_destroy(&four);
+          dart_destroy(&three);
+          dart_destroy(&two);
+          dart_destroy(&one);
         });
         REQUIRE(dart_iterator_done(&it));
         dart_iterator_destroy(&it);
@@ -643,6 +904,76 @@ SCENARIO("objects can be iterated over", "[abi unit]") {
         REQUIRE(dart_bool_get(&four) == false);
         REQUIRE(dart_is_dcm(&five));
         REQUIRE(dart_dcm_get(&five) == 3.14159);
+      }
+
+      WHEN("we create a copy") {
+        dart_iterator_t copy;
+        dart_iterator_copy_err(&copy, &it);
+        auto guard = make_scope_guard([&] { dart_iterator_destroy(&copy); });
+
+        size_t spins = 0;
+        while (!dart_iterator_done(&it)) {
+          dart_iterator_next(&it);
+          ++spins;
+        }
+        REQUIRE(dart_iterator_done(&it));
+        REQUIRE(!dart_iterator_done(&copy));
+
+        while (!dart_iterator_done(&copy)) {
+          dart_iterator_next(&copy);
+          --spins;
+        }
+        REQUIRE(dart_iterator_done(&copy));
+        REQUIRE(spins == 0);
+      }
+
+      WHEN("we move into a new iterator") {
+        dart_iterator_t moved;
+        dart_iterator_move_err(&moved, &it);
+        auto guard = make_scope_guard([&] { dart_iterator_destroy(&moved); });
+        THEN("it resets the original iterator") {
+          REQUIRE(dart_iterator_done(&it));
+        }
+      }
+    }
+
+    WHEN("we create a key iterator") {
+      // Initialize a key iterator for our object
+      dart_iterator_t it;
+      dart_iterator_init_key_from_err(&it, &obj);
+
+      THEN("it visits all keys") {
+        REQUIRE(!dart_iterator_done(&it));
+        auto one = dart_iterator_get(&it);
+        dart_iterator_next(&it);
+        auto two = dart_iterator_get(&it);
+        dart_iterator_next(&it);
+        auto three = dart_iterator_get(&it);
+        dart_iterator_next(&it);
+        auto four = dart_iterator_get(&it);
+        dart_iterator_next(&it);
+        auto five = dart_iterator_get(&it);
+        dart_iterator_next(&it);
+        auto guard = make_scope_guard([&] {
+          dart_destroy(&five);
+          dart_destroy(&four);
+          dart_destroy(&three);
+          dart_destroy(&two);
+          dart_destroy(&one);
+        });
+        REQUIRE(dart_iterator_done(&it));
+        dart_iterator_destroy(&it);
+
+        REQUIRE(dart_is_str(&one));
+        REQUIRE(dart_str_get(&one) == "Str"s);
+        REQUIRE(dart_is_str(&two));
+        REQUIRE(dart_str_get(&two) == "int"s);
+        REQUIRE(dart_is_str(&three));
+        REQUIRE(dart_str_get(&three) == "str"s);
+        REQUIRE(dart_is_str(&four));
+        REQUIRE(dart_str_get(&four) == "bool"s);
+        REQUIRE(dart_is_str(&five));
+        REQUIRE(dart_str_get(&five) == "decimal"s);
       }
     }
 
@@ -665,6 +996,120 @@ SCENARIO("objects can be iterated over", "[abi unit]") {
         }
       }
     }
+
+    WHEN("we use automatic key iteration") {
+      int idx = 0;
+      dart_packet_t val;
+      auto arr = dart_arr_init_va_rc(DART_RC_SAFE, "sssss", "Str", "int", "str", "bool", "decimal");
+      auto guard = make_scope_guard([&] { dart_destroy(&arr); });
+      THEN("it visits all keys in the expected order") {
+        dart_for_each_key(&obj, &val) {
+          // Get the key manually.
+          auto verify = dart_arr_get(&arr, idx++);
+          auto guard = make_scope_guard([&] { dart_destroy(&verify); });
+
+          // Check it.
+          REQUIRE(dart_equal(&val, &verify));
+        }
+      }
+    }
+  }
+}
+
+SCENARIO("objects can switch between finalized and non-finalized representations", "[abi unit]") {
+  GIVEN("an object with lots of contents") {
+    auto obj = dart_obj_init_va("sass,oidb,sidbn",
+        "hello", "world", "arr", "one", "two",
+        "obj", "nest_int", 1337, "nest_dcm", 3.14159, "nest_bool", true,
+        "yes", "no", "int", 1337, "dcm", 3.14159, "bool", true, "none");
+    auto guard = make_scope_guard([&] { dart_destroy(&obj); });
+
+    WHEN("the object is finalized") {
+      // These functions are equivalent
+      auto fin = dart_finalize(&obj);
+      auto low = dart_lower(&obj);
+
+      THEN("it still compares equal with its original representation") {
+        REQUIRE(dart_is_finalized(&fin));
+        REQUIRE(dart_is_finalized(&low));
+        REQUIRE(dart_equal(&fin, &low));
+        REQUIRE(dart_equal(&obj, &fin));
+        REQUIRE(dart_equal(&fin, &obj));
+        REQUIRE(dart_equal(&obj, &low));
+        REQUIRE(dart_equal(&low, &obj));
+      }
+
+      WHEN("the object is de-finalized again") {
+        auto liftd = dart_lift(&low);
+        auto nofin = dart_definalize(&fin);
+
+        THEN("comparisons still check out in all directions") {
+          REQUIRE(!dart_is_finalized(&liftd));
+          REQUIRE(!dart_is_finalized(&nofin));
+          REQUIRE(dart_equal(&liftd, &nofin));
+          REQUIRE(dart_equal(&liftd, &obj));
+          REQUIRE(dart_equal(&nofin, &obj));
+          REQUIRE(dart_equal(&liftd, &low));
+          REQUIRE(dart_equal(&nofin, &fin));
+          REQUIRE(dart_equal(&low, &liftd));
+          REQUIRE(dart_equal(&nofin, &fin));
+        }
+      }
+    }
+  }
+}
+
+SCENARIO("finalized objects have unique object representations") {
+  GIVEN("two independent, but equivalent, objects") {
+    auto objone = dart_obj_init_va("sass,oidb,sidbn",
+        "hello", "world", "arr", "one", "two",
+        "obj", "nest_int", 1337, "nest_dcm", 3.14159, "nest_bool", true,
+        "yes", "no", "int", 1337, "dcm", 3.14159, "bool", true, "none");
+    auto objtwo = dart_obj_init_va("sass,oidb,sidbn",
+        "hello", "world", "arr", "one", "two",
+        "obj", "nest_int", 1337, "nest_dcm", 3.14159, "nest_bool", true,
+        "yes", "no", "int", 1337, "dcm", 3.14159, "bool", true, "none");
+    auto guard = make_scope_guard([&] {
+      dart_destroy(&objtwo);
+      dart_destroy(&objone);
+    });
+
+    WHEN("the objects are finalized") {
+      auto finone = dart_lower(&objone);
+      auto fintwo = dart_lower(&objtwo);
+      auto guard = make_scope_guard([&] {
+        dart_destroy(&fintwo);
+        dart_destroy(&finone);
+      });
+
+      THEN("they produce the same byte representation") {
+        size_t lenone, lentwo;
+        auto* bytesone = dart_get_bytes(&finone, &lenone);
+        auto* bytestwo = dart_get_bytes(&fintwo, &lentwo);
+        REQUIRE(lenone == lentwo);
+        REQUIRE(std::memcmp(bytesone, bytestwo, lenone) == 0);
+
+        auto* ownone = dart_dup_bytes(&finone, &lenone);
+        auto* owntwo = dart_dup_bytes(&fintwo, &lentwo);
+        auto guard = make_scope_guard([&] {
+          free(owntwo);
+          free(ownone);
+        });
+        REQUIRE(lenone == lentwo);
+        REQUIRE(std::memcmp(ownone, owntwo, lenone) == 0);
+      }
+
+      THEN("they can be reconstituted") {
+        size_t lenone;
+        auto* bytes = dart_get_bytes(&finone, &lenone);
+        auto recone = dart_from_bytes(bytes, lenone);
+        auto guard = make_scope_guard([&] { dart_destroy(&recone); });
+
+        REQUIRE(dart_equal(&recone, &objone));
+        REQUIRE(dart_equal(&recone, &finone));
+        REQUIRE(std::memcmp(dart_get_bytes(&recone, nullptr), bytes, lenone) == 0);
+      }
+    }
   }
 }
 
@@ -672,7 +1117,8 @@ SCENARIO("arrays can be constructed with many values", "[abi unit]") {
   GIVEN("many test cases to run") {
     WHEN("an array is constructed with many values") {
       auto* str = "runtime";
-      auto arr = dart_arr_init_va("Ssbdi",
+      dart_packet_t arr;
+      dart_arr_init_va_err(&arr, "Ssbdi",
           str, strlen(str), "string", true, 2.99792, 1337);
       auto guard = make_scope_guard([&] { dart_destroy(&arr); });
 
@@ -726,7 +1172,7 @@ SCENARIO("arrays can be constructed with many values", "[abi unit]") {
 
 SCENARIO("arrays can insert any type", "[abi unit]") {
   GIVEN("an array to insert into") {
-    auto arr = dart_arr_init();
+    auto arr = dart_arr_init_rc(DART_RC_SAFE);
     auto guard = make_scope_guard([&] { dart_destroy(&arr); });
 
     WHEN("we insert another dart type") {
@@ -823,7 +1269,8 @@ SCENARIO("arrays can insert any type", "[abi unit]") {
 
 SCENARIO("arrays can assign to existing indices", "[abi unit]") {
   GIVEN("an array full of stuff") {
-    auto arr = dart_arr_init_va("sos,idbn", "hello", "yes", "no", 27, 2.99792, false);
+    dart_packet_t arr;
+    dart_arr_init_va_rc_err(&arr, DART_RC_SAFE, "sos,idbn", "hello", "yes", "no", 27, 2.99792, false);
     auto guard = make_scope_guard([&] { dart_destroy(&arr); });
 
     WHEN("the nested object is assigned to") {
