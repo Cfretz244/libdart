@@ -226,7 +226,7 @@ namespace {
 
   dart_err_t dart_arr_insert_bool_impl(void* dst, size_t idx, int val) {
     return generic_access(
-      mutable_visitor([=] (auto& dst) { dst.insert(idx, val); }),
+      mutable_visitor([=] (auto& dst) { dst.insert(idx, static_cast<bool>(val)); }),
       dst
     );
   }
@@ -283,7 +283,7 @@ namespace {
 
   dart_err_t dart_arr_set_bool_impl(void* dst, size_t idx, int val) {
     return generic_access(
-      mutable_visitor([=] (auto& dst) { dst.set(idx, val); }),
+      mutable_visitor([=] (auto& dst) { dst.set(idx, static_cast<bool>(val)); }),
       dst
     );
   }

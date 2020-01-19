@@ -303,8 +303,8 @@ SCENARIO("objects can insert any type", "[abi unit]") {
 
     WHEN("we insert another dart type") {
       auto nested = dart_obj_init_va("ss", "hello", "world", "yes", "no");
-      dart_obj_insert_dart(&obj, "nested", &nested);
       auto guard = make_scope_guard([&] { dart_destroy(&nested); });
+      dart_obj_insert_dart(&obj, "nested", &nested);
 
       THEN("the object is reachable, and the original copy is preserved") {
         auto grabbed = dart_obj_get(&obj, "nested");
@@ -314,6 +314,7 @@ SCENARIO("objects can insert any type", "[abi unit]") {
         REQUIRE(dart_is_obj(&grabbed));
         REQUIRE(dart_size(&nested) == 2U);
         REQUIRE(dart_size(&grabbed) == 2U);
+        REQUIRE(dart_equal(&nested, &grabbed));
         REQUIRE(dart_get_type(&nested) == DART_OBJECT);
         REQUIRE(dart_get_type(&grabbed) == DART_OBJECT);
       }
@@ -321,8 +322,8 @@ SCENARIO("objects can insert any type", "[abi unit]") {
 
     WHEN("we take another dart type") {
       auto nested = dart_obj_init_va("ss", "hello", "world", "yes", "no");
-      dart_obj_insert_take_dart(&obj, "nested", &nested);
       auto guard = make_scope_guard([&] { dart_destroy(&nested); });
+      dart_obj_insert_take_dart(&obj, "nested", &nested);
 
       THEN("the object is reachable, and the original copy is reset to null") {
         auto grabbed = dart_obj_get(&obj, "nested");
@@ -350,7 +351,7 @@ SCENARIO("objects can insert any type", "[abi unit]") {
 
     WHEN("we insert an integer") {
       dart_obj_insert_int(&obj, "int", 6);
-      THEN("the string is reachable and has the correct value") {
+      THEN("the integer is reachable and has the correct value") {
         auto integer = dart_obj_get(&obj, "int");
         auto guard = make_scope_guard([&] { dart_destroy(&integer); });
 
@@ -361,7 +362,7 @@ SCENARIO("objects can insert any type", "[abi unit]") {
 
     WHEN("we insert a decimal") {
       dart_obj_insert_dcm(&obj, "pi", 3.14159);
-      THEN("the string is reachable and has the correct value") {
+      THEN("the decimal is reachable and has the correct value") {
         auto dcm = dart_obj_get(&obj, "pi");
         auto guard = make_scope_guard([&] { dart_destroy(&dcm); });
 
@@ -372,7 +373,7 @@ SCENARIO("objects can insert any type", "[abi unit]") {
 
     WHEN("we insert a boolean") {
       dart_obj_insert_bool(&obj, "truth", true);
-      THEN("the string is reachable and has the correct value") {
+      THEN("the boolean is reachable and has the correct value") {
         auto boolean = dart_obj_get(&obj, "truth");
         auto guard = make_scope_guard([&] { dart_destroy(&boolean); });
 
@@ -421,16 +422,6 @@ SCENARIO("objects can assign to existing indices", "[abi unit]") {
       }
     }
 
-    WHEN("the nested object is assigned to from a disparate type") {
-      dart_obj_set_null(&obj, "nested");
-      THEN("it takes on the value we expect") {
-        auto prevobj = dart_obj_get(&obj, "nested");
-        auto guard = make_scope_guard([&] { dart_destroy(&prevobj); });
-        REQUIRE(dart_is_null(&prevobj));
-        REQUIRE(dart_obj_has_key(&obj, "nested"));
-      }
-    }
-
     WHEN("the nested object is move assigned to") {
       auto nested = dart_obj_init_va("s", "stop", "go");
       auto guard = make_scope_guard([&] { dart_destroy(&nested); });
@@ -447,6 +438,16 @@ SCENARIO("objects can assign to existing indices", "[abi unit]") {
         REQUIRE(dart_size(&nes) == 1U);
         REQUIRE(!dart_equal(&nested, &nes));
         REQUIRE(dart_str_get(&str) == "go"s);
+      }
+    }
+
+    WHEN("the nested object is assigned to from a disparate type") {
+      dart_obj_set_null(&obj, "nested");
+      THEN("it takes on the value we expect") {
+        auto prevobj = dart_obj_get(&obj, "nested");
+        auto guard = make_scope_guard([&] { dart_destroy(&prevobj); });
+        REQUIRE(dart_is_null(&prevobj));
+        REQUIRE(dart_obj_has_key(&obj, "nested"));
       }
     }
 
@@ -723,6 +724,322 @@ SCENARIO("arrays can be constructed with many values", "[abi unit]") {
   }
 }
 
+SCENARIO("arrays can insert any type", "[abi unit]") {
+  GIVEN("an array to insert into") {
+    auto arr = dart_arr_init();
+    auto guard = make_scope_guard([&] { dart_destroy(&arr); });
+
+    WHEN("we insert another dart type") {
+      auto nested = dart_obj_init_va("ss", "hello", "world", "yes", "no");
+      auto guard = make_scope_guard([&] { dart_destroy(&nested); });
+      dart_arr_insert_dart(&arr, 0, &nested);
+
+      THEN("the object is reachable, and the original copy is preserved") {
+        auto grabbed = dart_arr_get(&arr, 0);
+        auto guard = make_scope_guard([&] { dart_destroy(&grabbed); });
+
+        REQUIRE(dart_is_obj(&nested));
+        REQUIRE(dart_is_obj(&grabbed));
+        REQUIRE(dart_size(&arr) == 1U);
+        REQUIRE(dart_size(&nested) == 2U);
+        REQUIRE(dart_size(&grabbed) == 2U);
+        REQUIRE(dart_equal(&nested, &grabbed));
+      }
+    }
+
+    WHEN("we take another dart type") {
+      auto nested = dart_obj_init_va("ss", "hello", "world", "yes", "no");
+      auto guard = make_scope_guard([&] { dart_destroy(&nested); });
+      dart_arr_insert_take_dart(&arr, 0, &nested);
+
+      THEN("the object is reachable, and the original copy is reset to null") {
+        auto grabbed = dart_arr_get(&arr, 0);
+        auto guard = make_scope_guard([&] { dart_destroy(&grabbed); });
+
+        REQUIRE(dart_is_null(&nested));
+        REQUIRE(dart_is_obj(&grabbed));
+        REQUIRE(dart_size(&arr) == 1U);
+        REQUIRE(dart_size(&grabbed) == 2U);
+        REQUIRE(!dart_equal(&nested, &grabbed));
+      }
+    }
+
+    WHEN("we insert a string") {
+      dart_arr_insert_str(&arr, 0, "testing");
+      THEN("the string is reachable and has the correct value") {
+        auto str = dart_arr_get(&arr, 0);
+        auto guard = make_scope_guard([&] { dart_destroy(&str); });
+
+        REQUIRE(dart_is_str(&str));
+        REQUIRE(dart_str_get(&str) == "testing"s);
+      }
+    }
+
+    WHEN("we insert an integer") {
+      dart_arr_insert_int(&arr, 0, 1337);
+      THEN("the integer is reachable and has the correct value") {
+        auto integer = dart_arr_get(&arr, 0);
+        auto guard = make_scope_guard([&] { dart_destroy(&integer); });
+
+        REQUIRE(dart_is_int(&integer));
+        REQUIRE(dart_int_get(&integer) == 1337);
+      }
+    }
+
+    WHEN("we insert a decimal") {
+      dart_arr_insert_dcm(&arr, 0, 3.14159);
+      THEN("the decimal is reachable and has the correct value") {
+        auto dcm = dart_arr_get(&arr, 0);
+        auto guard = make_scope_guard([&] { dart_destroy(&dcm); });
+
+        REQUIRE(dart_is_dcm(&dcm));
+        REQUIRE(dart_dcm_get(&dcm) == 3.14159);
+      }
+    }
+
+    WHEN("we insert a boolean") {
+      dart_arr_insert_bool(&arr, 0, true);
+      THEN("the boolean is reachable and has the correct value") {
+        auto boolean = dart_arr_get(&arr, 0);
+        auto guard = make_scope_guard([&] { dart_destroy(&boolean); });
+
+        REQUIRE(dart_is_bool(&boolean));
+        REQUIRE(dart_bool_get(&boolean));
+      }
+    }
+
+    WHEN("we insert a null") {
+      dart_arr_insert_null(&arr, 0);
+      THEN("the null is reachable") {
+        auto null = dart_arr_get(&arr, 0);
+        auto guard = make_scope_guard([&] { dart_destroy(&null); });
+
+        REQUIRE(dart_is_null(&null));
+        REQUIRE(dart_size(&arr) == 1U);
+      }
+    }
+  }
+}
+
+SCENARIO("arrays can assign to existing indices", "[abi unit]") {
+  GIVEN("an array full of stuff") {
+    auto arr = dart_arr_init_va("sos,idbn", "hello", "yes", "no", 27, 2.99792, false);
+    auto guard = make_scope_guard([&] { dart_destroy(&arr); });
+
+    WHEN("the nested object is assigned to") {
+      auto nested = dart_obj_init_va("s", "stop", "go");
+      auto guard = make_scope_guard([&] { dart_destroy(&nested); });
+      dart_arr_set_dart(&arr, 1, &nested);
+      THEN("it takes on the value we expect") {
+        auto nes = dart_arr_get(&arr, 1);
+        auto str = dart_obj_get(&nes, "stop");
+        auto guard = make_scope_guard([&] {
+          dart_destroy(&str);
+          dart_destroy(&nes);
+        });
+        REQUIRE(dart_is_obj(&nes));
+        REQUIRE(dart_is_obj(&nested));
+        REQUIRE(dart_size(&nes) == 1U);
+        REQUIRE(dart_size(&nested) == 1U);
+        REQUIRE(dart_equal(&nested, &nes));
+        REQUIRE(dart_str_get(&str) == "go"s);
+        REQUIRE(dart_size(&arr) == 6U);
+      }
+    }
+
+    WHEN("the nested object is move assigned to") {
+      auto nested = dart_obj_init_va("s", "stop", "go");
+      auto guard = make_scope_guard([&] { dart_destroy(&nested); });
+      dart_arr_set_take_dart(&arr, 1, &nested);
+      THEN("it takes on the value we expect") {
+        auto nes = dart_arr_get(&arr, 1);
+        auto str = dart_obj_get(&nes, "stop");
+        auto guard = make_scope_guard([&] {
+          dart_destroy(&str);
+          dart_destroy(&nes);
+        });
+        REQUIRE(dart_is_obj(&nes));
+        REQUIRE(dart_is_null(&nested));
+        REQUIRE(dart_size(&nes) == 1U);
+        REQUIRE(!dart_equal(&nested, &nes));
+        REQUIRE(dart_str_get(&str) == "go"s);
+        REQUIRE(dart_size(&arr) == 6U);
+      }
+    }
+
+    WHEN("the nested object is assigned to from a disparate type") {
+      dart_arr_set_null(&arr, 1);
+      THEN("it takes on the value we expect") {
+        auto prevobj = dart_arr_get(&arr, 1);
+        auto guard = make_scope_guard([&] { dart_destroy(&prevobj); });
+        REQUIRE(dart_is_null(&prevobj));
+        REQUIRE(dart_size(&arr) == 6U);
+      }
+    }
+
+    WHEN("the string value is assigned to") {
+      dart_arr_set_str(&arr, 0, "goodbye");
+      THEN("it takes on the value we expect") {
+        auto str = dart_arr_get(&arr, 0);
+        auto guard = make_scope_guard([&] { dart_destroy(&str); });
+        REQUIRE(dart_is_str(&str));
+        REQUIRE(dart_size(&str) == strlen("goodbye"));
+        REQUIRE(dart_str_get(&str) == "goodbye"s);
+      }
+    }
+
+    WHEN("the string value is assigned from a disparate type") {
+      dart_arr_set_bool(&arr, 0, true);
+      THEN("it takes on the value we expect") {
+        auto prevstr = dart_arr_get(&arr, 0);
+        auto guard = make_scope_guard([&] { dart_destroy(&prevstr); });
+
+        REQUIRE(dart_is_bool(&prevstr));
+        REQUIRE(dart_bool_get(&prevstr));
+      }
+    }
+
+    WHEN("the integer value is assigned to") {
+      dart_arr_set_int(&arr, 2, 72);
+      THEN("it takes on the value we expect") {
+        auto integer = dart_arr_get(&arr, 2);
+        auto guard = make_scope_guard([&] { dart_destroy(&arr); });
+        REQUIRE(dart_is_int(&integer));
+        REQUIRE(dart_int_get(&integer) == 72);
+      }
+    }
+
+    WHEN("the integer value is assigned from a disparate type") {
+      dart_arr_set_dcm(&arr, 2, 27.5);
+      THEN("it takes on the value we expect") {
+        auto prevint = dart_arr_get(&arr, 2);
+        auto guard = make_scope_guard([&] { dart_destroy(&prevint); });
+        REQUIRE(dart_is_dcm(&prevint));
+        REQUIRE(dart_dcm_get(&prevint) == 27.5);
+      }
+    }
+
+    WHEN("the decimal value is assigned to") {
+      dart_arr_set_dcm(&arr, 3, 3.0);
+      THEN("it takes on the value we expect") {
+        auto dcm = dart_arr_get(&arr, 3);
+        auto guard = make_scope_guard([&] { dart_destroy(&dcm); });
+        REQUIRE(dart_is_dcm(&dcm));
+        REQUIRE(dart_dcm_get(&dcm) == 3.0);
+      }
+    }
+
+    WHEN("the decimal is assigned to from a disparate type") {
+      dart_arr_set_int(&arr, 3, 3);
+      THEN("it takes on the value we expect") {
+        auto prevdcm = dart_arr_get(&arr, 3);
+        auto guard = make_scope_guard([&] { dart_destroy(&prevdcm); });
+        REQUIRE(dart_is_int(&prevdcm));
+        REQUIRE(dart_int_get(&prevdcm) == 3);
+      }
+    }
+
+    WHEN("the boolean value is assigned to") {
+      dart_arr_set_bool(&arr, 4, true);
+      THEN("it takes on the value we expect") {
+        auto boolean = dart_arr_get(&arr, 4);
+        auto guard = make_scope_guard([&] { dart_destroy(&boolean); });
+        REQUIRE(dart_is_bool(&boolean));
+        REQUIRE(dart_bool_get(&boolean));
+      }
+    }
+
+    WHEN("the boolean is assigned to from a disparate type") {
+      dart_arr_set_str(&arr, 4, "true");
+      THEN("it takes on the value we expect") {
+        auto prevbool = dart_arr_get(&arr, 4);
+        auto guard = make_scope_guard([&] { dart_destroy(&prevbool); });
+        REQUIRE(dart_is_str(&prevbool));
+        REQUIRE(dart_str_get(&prevbool) == "true"s);
+      }
+    }
+
+    WHEN("the null is assigned to") {
+      dart_arr_set_null(&arr, 5);
+      THEN("it retains the value we expect") {
+        auto null = dart_arr_get(&arr, 5);
+        auto guard = make_scope_guard([&] { dart_destroy(&null); });
+        REQUIRE(dart_is_null(&null));
+      }
+    }
+
+    WHEN("the null is assigned to from a disparate type") {
+      auto nested = dart_obj_init_va("sss", "hello", "world", "yes", "no", "stop", "go");
+      dart_arr_set_take_dart(&arr, 5, &nested);
+      dart_destroy(&nested);
+      THEN("it takes on the value we expect") {
+        auto nes = dart_arr_get(&arr, 5);
+        auto guard = make_scope_guard([&] { dart_destroy(&nes); });
+        REQUIRE(dart_is_obj(&nes));
+        REQUIRE(dart_size(&nes) == 3U);
+      }
+    }
+  }
+}
+
+SCENARIO("arrays can erase existing indices", "[abi unit]") {
+  GIVEN("an array full of stuff") {
+    auto arr = dart_arr_init_va("sidb", "hello", 27, 2.99792, true);
+    auto guard = make_scope_guard([&] { dart_destroy(&arr); });
+
+    WHEN("the string is erased") {
+      dart_arr_erase(&arr, 0);
+      THEN("all other indices shift up") {
+        auto first = dart_arr_get(&arr, 0);
+        auto last = dart_arr_get(&arr, 2);
+        REQUIRE(dart_is_int(&first));
+        REQUIRE(dart_is_bool(&last));
+        REQUIRE(dart_int_get(&first) == 27);
+        REQUIRE(dart_bool_get(&last));
+      }
+    }
+
+    WHEN("the integer is erased") {
+      dart_arr_erase(&arr, 1);
+      THEN("all later indices shift up") {
+        auto first = dart_arr_get(&arr, 0);
+        auto last = dart_arr_get(&arr, 2);
+        REQUIRE(dart_is_str(&first));
+        REQUIRE(dart_is_bool(&last));
+        REQUIRE(dart_str_get(&first) == "hello"s);
+        REQUIRE(dart_bool_get(&last));
+        REQUIRE(dart_size(&arr) == 3U);
+      }
+    }
+
+    WHEN("the decimal is erased") {
+      dart_arr_erase(&arr, 2);
+      THEN("the last index shifts up") {
+        auto first = dart_arr_get(&arr, 0);
+        auto last = dart_arr_get(&arr, 2);
+        REQUIRE(dart_is_str(&first));
+        REQUIRE(dart_is_bool(&last));
+        REQUIRE(dart_str_get(&first) == "hello"s);
+        REQUIRE(dart_bool_get(&last));
+        REQUIRE(dart_size(&arr) == 3U);
+      }
+    }
+
+    WHEN("the boolean is erased") {
+      dart_arr_erase(&arr, 3);
+      THEN("no other indexes are affected") {
+        auto first = dart_arr_get(&arr, 0);
+        auto last = dart_arr_get(&arr, 2);
+        REQUIRE(dart_is_str(&first));
+        REQUIRE(dart_is_dcm(&last));
+        REQUIRE(dart_str_get(&first) == "hello"s);
+        REQUIRE(dart_dcm_get(&last) == 2.99792);
+        REQUIRE(dart_size(&arr) == 3U);
+      }
+    }
+  }
+}
+
 SCENARIO("arrays can be iterated over", "[abi unit]") {
   GIVEN("an array with contents") {
     auto* dyn = "dynamic";
@@ -783,6 +1100,97 @@ SCENARIO("arrays can be iterated over", "[abi unit]") {
           REQUIRE(dart_get_type(&val) == dart_get_type(&verify));
           REQUIRE(dart_equal(&val, &verify));
         }
+      }
+    }
+  }
+}
+
+SCENARIO("arrays are positional data structures", "[abi unit]") {
+  GIVEN("an empty array") {
+    auto arr = dart_arr_init();
+    auto guard = make_scope_guard([&] { dart_destroy(&arr); });
+
+    THEN("it contains no elements") {
+      REQUIRE(dart_size(&arr) == 0U);
+    }
+
+    WHEN("the array is resized") {
+      dart_arr_resize(&arr, 3);
+      THEN("it contains empty slots") {
+        auto one = dart_arr_get(&arr, 0);
+        auto two = dart_arr_get(&arr, 1);
+        auto three = dart_arr_get(&arr, 2);
+        auto guard = make_scope_guard([&] {
+          dart_destroy(&three);
+          dart_destroy(&two);
+          dart_destroy(&one);
+        });
+        REQUIRE(dart_size(&arr) == 3U);
+        REQUIRE(dart_is_null(&one));
+        REQUIRE(dart_is_null(&two));
+        REQUIRE(dart_is_null(&three));
+      }
+
+      WHEN("elements are inserted in the middle") {
+        dart_arr_insert_str(&arr, 1, "middle");
+        THEN("later elements shift down") {
+          auto lhs = dart_arr_get(&arr, 0);
+          auto rhs = dart_arr_get(&arr, 2);
+          auto mid = dart_arr_get(&arr, 1);
+          auto guard = make_scope_guard([&] {
+            dart_destroy(&mid);
+            dart_destroy(&rhs);
+            dart_destroy(&lhs);
+          });
+          REQUIRE(dart_is_null(&lhs));
+          REQUIRE(dart_is_null(&rhs));
+          REQUIRE(dart_is_str(&mid));
+          REQUIRE(dart_str_get(&mid) == "middle"s);
+          REQUIRE(dart_size(&arr) == 4U);
+        }
+      }
+
+      WHEN("elements are assigned to in the middle") {
+        auto nested = dart_obj_init_va("sss", "hello", "goodbye", "yes", "no", "stop", "go");
+        dart_arr_set_take_dart(&arr, 1, &nested);
+        dart_destroy(&nested);
+        THEN("the index is assigned in place, without affecting neighbors") {
+          auto lhs = dart_arr_get(&arr, 0);
+          auto rhs = dart_arr_get(&arr, 2);
+          auto mid = dart_arr_get(&arr, 1);
+          auto guard = make_scope_guard([&] {
+            dart_destroy(&mid);
+            dart_destroy(&rhs);
+            dart_destroy(&lhs);
+          });
+          REQUIRE(dart_is_null(&lhs));
+          REQUIRE(dart_is_null(&rhs));
+          REQUIRE(dart_is_obj(&mid));
+          REQUIRE(dart_size(&mid) == 3U);
+          REQUIRE(dart_obj_has_key(&mid, "hello"));
+        }
+      }
+
+      WHEN("elements are deleted in the middle") {
+        dart_arr_erase(&arr, 1);
+        THEN("later elements shift up") {
+          auto first = dart_arr_get(&arr, 0);
+          auto last = dart_arr_get(&arr, 1);
+          auto guard = make_scope_guard([&] {
+            dart_destroy(&last);
+            dart_destroy(&first);
+          });
+          REQUIRE(dart_is_null(&first));
+          REQUIRE(dart_is_null(&last));
+          REQUIRE(dart_size(&arr) == 2U);
+        }
+      }
+    }
+
+    WHEN("the array has space reserved") {
+      dart_arr_reserve(&arr, 3);
+      THEN("its advertised contents do not change") {
+        REQUIRE(dart_size(&arr) == 0U);
       }
     }
   }
