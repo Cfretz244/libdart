@@ -6,7 +6,7 @@
 
 /*----- Local Includes -----*/
 
-#include <string.h>
+#include <cstring>
 #include <iostream>
 #include "../include/dart/abi.h"
 #include "../include/extern/catch.h"
@@ -1028,6 +1028,10 @@ SCENARIO("objects can switch between finalized and non-finalized representations
       // These functions are equivalent
       auto fin = dart_finalize(&obj);
       auto low = dart_lower(&obj);
+      auto guard = make_scope_guard([&] {
+        dart_destroy(&low);
+        dart_destroy(&fin);
+      });
 
       THEN("it still compares equal with its original representation") {
         REQUIRE(dart_is_finalized(&fin));
@@ -1042,6 +1046,10 @@ SCENARIO("objects can switch between finalized and non-finalized representations
       WHEN("the object is de-finalized again") {
         auto liftd = dart_lift(&low);
         auto nofin = dart_definalize(&fin);
+        auto guard = make_scope_guard([&] {
+          dart_destroy(&nofin);
+          dart_destroy(&liftd);
+        });
 
         THEN("comparisons still check out in all directions") {
           REQUIRE(!dart_is_finalized(&liftd));
