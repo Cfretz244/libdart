@@ -628,7 +628,8 @@ namespace {
 
   dart_err_t dart_iterator_get_err_impl(dart_packet_t* dst, dart_iterator_t const* src) {
     // Initialize.
-    dart_rtti_propagate(dst, src);
+    dst->rtti.p_id = DART_PACKET;
+    dart_rc_propagate(dst, src);
     return iterator_access(
       [dst] (auto& src_curr, auto& src_end) {
         using type = typename std::decay_t<decltype(src_curr)>::value_type;
