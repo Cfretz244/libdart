@@ -632,7 +632,15 @@ namespace {
     dart_rc_propagate(dst, src);
     return iterator_access(
       [dst] (auto& src_curr, auto& src_end) {
-        using type = typename std::decay_t<decltype(src_curr)>::value_type;
+        // XXX: Yikes.
+        // For the sake of simplicity (this API is already huge), the ABI iterator API always
+        // hands out dart_packet_t instances, but the underlying iterator type will depend on what
+        // type it was initialized from.
+        // We need to safely dereference and convert whatever iterator type we currently have
+        // into a dart::packet instance with the same reference counter type as the incoming iterator.
+        // Thankfully, all of the Dart types have a builtin type member, generic_type, which will
+        // compute the type we actually need to initialize here.
+        using type = typename std::decay_t<decltype(src_curr)>::value_type::generic_type;
         if (src_curr == src_end) throw std::runtime_error("dart_iterator has been exhausted");
         return packet_construct([&src_curr] (type* dst) { new(dst) type(*src_curr); }, dst);
       },
