@@ -95,11 +95,14 @@ SCENARIO("dart buffers are regular types", "[buffer abi unit]") {
 
     WHEN("aggregates are inserted") {
       auto nested = dart_obj_init_rc(DART_RC_SAFE);
-      auto guard = make_scope_guard([&] { dart_destroy(&nested); });
       dart_obj_insert_str(&nested, "a nested", "string");
       dart_obj_insert_dart(&mut, "nested", &nested);
 
       auto fin = dart_to_buffer(&mut);
+      auto guard = make_scope_guard([&] {
+        dart_destroy(&fin);
+        dart_destroy(&nested);
+      });
       THEN("it's recursively queryable") {
         auto nested_copy = dart_buffer_obj_get(&fin, "nested");
         auto nested_str = dart_buffer_obj_get(&nested_copy, "a nested");
@@ -252,6 +255,7 @@ SCENARIO("buffer objects can be iterated over", "[buffer abi unit]") {
       // Initialize an iterator for our object.
       dart_iterator_t it;
       dart_iterator_init_from_err(&it, &fin);
+      auto guard = make_scope_guard([&] { dart_iterator_destroy(&it); });
 
       THEN("it visits all values") {
         REQUIRE(!dart_iterator_done(&it));
@@ -273,7 +277,6 @@ SCENARIO("buffer objects can be iterated over", "[buffer abi unit]") {
           dart_destroy(&one);
         });
         REQUIRE(dart_iterator_done(&it));
-        dart_iterator_destroy(&it);
 
         REQUIRE(dart_is_str(&one));
         REQUIRE(dart_str_get(&one) == "dynamic"s);
@@ -322,6 +325,7 @@ SCENARIO("buffer objects can be iterated over", "[buffer abi unit]") {
       // Initialize a key iterator for our object
       dart_iterator_t it;
       dart_iterator_init_key_from_err(&it, &fin);
+      auto guard = make_scope_guard([&] { dart_iterator_destroy(&it); });
 
       THEN("it visits all keys") {
         REQUIRE(!dart_iterator_done(&it));
@@ -343,7 +347,6 @@ SCENARIO("buffer objects can be iterated over", "[buffer abi unit]") {
           dart_destroy(&one);
         });
         REQUIRE(dart_iterator_done(&it));
-        dart_iterator_destroy(&it);
 
         REQUIRE(dart_is_str(&one));
         REQUIRE(dart_str_get(&one) == "Str"s);

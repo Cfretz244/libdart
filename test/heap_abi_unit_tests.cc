@@ -851,6 +851,7 @@ SCENARIO("heap objects can be iterated over", "[heap abi unit]") {
       // Initialize an iterator for our object.
       dart_iterator_t it;
       dart_iterator_init_from_err(&it, &obj);
+      auto guard = make_scope_guard([&] { dart_iterator_destroy(&it); });
 
       THEN("it visits all values") {
         REQUIRE(!dart_iterator_done(&it));
@@ -872,7 +873,6 @@ SCENARIO("heap objects can be iterated over", "[heap abi unit]") {
           dart_destroy(&one);
         });
         REQUIRE(dart_iterator_done(&it));
-        dart_iterator_destroy(&it);
 
         REQUIRE(dart_is_str(&one));
         REQUIRE(dart_str_get(&one) == "dynamic"s);
@@ -921,6 +921,7 @@ SCENARIO("heap objects can be iterated over", "[heap abi unit]") {
       // Initialize a key iterator for our object
       dart_iterator_t it;
       dart_iterator_init_key_from_err(&it, &obj);
+      auto guard = make_scope_guard([&] { dart_iterator_destroy(&it); });
 
       THEN("it visits all keys") {
         REQUIRE(!dart_iterator_done(&it));
@@ -942,7 +943,6 @@ SCENARIO("heap objects can be iterated over", "[heap abi unit]") {
           dart_destroy(&one);
         });
         REQUIRE(dart_iterator_done(&it));
-        dart_iterator_destroy(&it);
 
         REQUIRE(dart_is_str(&one));
         REQUIRE(dart_str_get(&one) == "Str"s);
@@ -1485,6 +1485,7 @@ SCENARIO("heap arrays can be iterated over", "[heap abi unit]") {
       // Initialize an iterator for our array.
       dart_iterator_t it;
       dart_iterator_init_from_err(&it, &arr);
+      auto guard = make_scope_guard([&] { dart_iterator_destroy(&it); });
 
       THEN("it visits all values") {
         REQUIRE(!dart_iterator_done(&it));
@@ -1506,7 +1507,6 @@ SCENARIO("heap arrays can be iterated over", "[heap abi unit]") {
           dart_destroy(&five);
         });
         REQUIRE(dart_iterator_done(&it));
-        dart_iterator_destroy(&it);
 
         REQUIRE(dart_is_int(&one));
         REQUIRE(dart_int_get(&one) == 1);

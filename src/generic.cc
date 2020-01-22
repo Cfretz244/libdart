@@ -421,6 +421,13 @@ namespace {
     else return type;
   }
 
+  size_t dart_refcount_impl(void const* src) {
+    size_t rc = 0;
+    auto err = generic_access([&rc] (auto& src) { rc = src.refcount(); }, src);
+    if (err) return DART_FAILURE;
+    else return rc;
+  }
+
   char* dart_to_json_impl(void const* src, size_t* len) {
     char* outstr;
     auto ret = generic_access(
@@ -1400,6 +1407,10 @@ extern "C" {
 
   dart_type_t dart_get_type(void const* src) {
     return dart_get_type_impl(src);
+  }
+
+  size_t dart_refcount(void const* src) {
+    return dart_refcount_impl(src);
   }
 
   dart_packet_t dart_from_json(char const* str) {
