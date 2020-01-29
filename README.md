@@ -15,10 +15,11 @@ modification when necessary.
 `JSON` parser, but it first and foremost targets real-time stream processing engines
 in a schema-less environment.
 
-It retains logarithmic complexity of object key-lookup, scales extremely well as packet
-sizes increase (see performance below), requires **zero** receiver-side memory
-allocations/parsing/unpacking for read-only interactions, and is header-only, allowing
-for trivially easy installation.
+It offers logarithmic complexity of object key-lookup, stability of object iteration,
+scales [extremely well](PERFORMANCE.md) as packet sizes increase, requires **zero**
+receiver-side memory allocations/parsing/unpacking for read-only interactions,
+and exposes two interfaces, a header-only C++14 interface for typical use, and an
+ABI stable C89 interface for binding against.
 
 Although not a `JSON` parser itself, **Dart** leverages the fastest general purpose
 `JSON` parsers available ([source](https://github.com/miloyip/nativejson-benchmark)),
@@ -26,12 +27,13 @@ Although not a `JSON` parser itself, **Dart** leverages the fastest general purp
 and [sajson](https://github.com/chadaustin/sajson), for format conversion both into,
 and out of, `JSON`.
 
-As **Dart** can also be useful when working with config files, it also supports parsing
-`YAML` via [libyaml](https://github.com/yaml/libyaml.git).
+Finally, as **Dart** can also be useful when working with config files, it also
+supports parsing `YAML` via [libyaml](https://github.com/yaml/libyaml.git).
 
 ## Quick Start
 This readme covers a wide variety of information for the library, but to give some motivating
-examples, here are some at-a-glance examples.
+examples, here are some at-a-glance examples. For examples of how to use the C binding layer,
+see our [bindings](BINDINGS.md) document.
 
 **Dart** makes parsing a `JSON` string dead-simple, and crazy [fast](PARSING.md):
 ```c++
@@ -125,7 +127,7 @@ cd build
 # Build, test, and install (assuming a 4 core machine).
 # Running tests isn't mandatory, but is highly recommended.
 # Dart is primarily a header-only library, but also includes
-# an ABI-stable pure C bindings layer which can be built and
+# an ABI-stable pure C binding layer which can be built and
 # installed with -Dbuild_abi=ON
 cmake .. # -Dbuild_abi=ON
 make -j 4
@@ -158,7 +160,8 @@ can be found here: [parsing performance](PARSING.md).
 
 ## Basic Usage
 Overly detailed usage examples can be obtained from the `test/` directory, or by building the
-included documentation, but some examples of basic usage are included below
+included documentation, but some examples of basic usage are included below. For examples of
+how to use the C binding layer, see our [bindings](BINDINGS.md) document.
 Parsing a JSON string with **Dart**:
 ```c++
 // Get some JSON from somewhere.
