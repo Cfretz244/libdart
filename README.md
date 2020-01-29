@@ -8,8 +8,8 @@ Dart
 **Dart** is both a wire-level binary `JSON` protocol, along with a high performance,
 and surprisingly high level, `C++` API to interact with that `JSON`.
 It is primarily optimized for on-the-wire representation size along with
-efficiency of receiver-side interaction, however, it also allows for reasonably 
-performant dynamic modification when necessary.
+efficiency of receiver-side interaction, however, it also allows for dynamic
+modification when necessary.
 
 **Dart** can be used in any application as a dead-simple, fast, and lightweight
 `JSON` parser, but it first and foremost targets real-time stream processing engines
@@ -33,13 +33,12 @@ As **Dart** can also be useful when working with config files, it also supports 
 This readme covers a wide variety of information for the library, but to give some motivating
 examples, here are some at-a-glance examples.
 
-**Dart** makes parsing a `JSON` string dead-simple, and crazy fast:
+**Dart** makes parsing a `JSON` string dead-simple, and crazy [fast](PARSING.md):
 ```c++
 #include <dart.h>
 #include <iostream>
 
 int main() {
-  // Parse JSON at half a gigabyte/second, and print.
   // Fancy string literal is a raw literal.
   auto json = dart::parse(R"({"msg":"hello from dart!"})");
   std::cout << json["msg"].to_json() << std::endl;
@@ -157,19 +156,9 @@ For those interested in where this performance comes from, see our
 `JSON` parsing performance is a big enough topic to be given its own document, which
 can be found here: [parsing performance](PARSING.md).
 
-## API Stability
-**Dart** has been an ongoing development effort over the last few years, and its API has
-morphed several times during that period. All of the network-level logic is very stable
-and has not changed significantly in some time, but the user-facing API is still being
-finalized and may change some before the first release.
-
-The library is currently set at version `0.9.0`, and after a period of a few weeks, collecting
-user/community feedback on the API, the project will transition to its `1.0.0` release,
-at which point the API will be considered stable.
-
 ## Basic Usage
 Overly detailed usage examples can be obtained from the `test/` directory, or by building the
-included documentation, but for the impatient among us, examples of basic usage are below.  
+included documentation, but some examples of basic usage are included below
 Parsing a JSON string with **Dart**:
 ```c++
 // Get some JSON from somewhere.
