@@ -16,10 +16,10 @@ modification when necessary.
 in a schema-less environment.
 
 It offers logarithmic complexity of object key-lookup, stability of object iteration,
-scales [extremely well](PERFORMANCE.md) as packet sizes increase, requires **zero**
-receiver-side memory allocations/parsing/unpacking for read-only interactions,
-and exposes two interfaces, a header-only C++14 interface for typical use, and an
-ABI stable C89 interface for binding against.
+scales [extremely well](PERFORMANCE.md#lookup-finalized-random-fields-1) as packet sizes
+increase, requires **zero** receiver-side memory allocations/parsing/unpacking for
+read-only interactions, and exposes two interfaces, a header-only C++14 interface for
+typical use, and an ABI stable C89 interface for binding against.
 
 Although not a `JSON` parser itself, **Dart** leverages the fastest general purpose
 `JSON` parsers available ([source](https://github.com/miloyip/nativejson-benchmark)),
