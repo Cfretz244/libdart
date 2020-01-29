@@ -3,11 +3,11 @@
 zero-configuration, drag-and-drop, dependencies, but both present significant
 challenges for any use case that requires long-term **ABI** stability (_any_
 modification can present as an **ABI** break for header-only libraries),
-or cross-language FFI bindings (symbol mangling is a never-ending nightmare).
+or cross-language **FFI** bindings (symbol mangling is a never-ending nightmare).
 
 To support these, and many other, use cases, **Dart** provides a secondary interface
-(available in the `#include <dart/abi.h>` header) that any **C89** compliant
-toolchain/FFI library can bind against without issue. Additionally, the **ABI**
+(available in the `<dart/abi.h>` header) that any **C89** compliant
+toolchain/**FFI** library can bind against without issue. Additionally, the **ABI**
 header is self contained and can be shipped around without the rest of the
 surrounding project.
 
@@ -76,6 +76,7 @@ int main() {
   // If an error occurs during parsing, a dart null instance is returned.
   dart_packet_t json = dart_from_json("{\"msg\":\"hello from dart!\"}");
   assert(dart_is_obj(&json));
+  assert(dart_size(&json) == 1);
 
   // Grab the nested string.
   // If the key isn't present, a dart null instance is returned.
@@ -112,6 +113,7 @@ int main() {
   // If initialization fails for any reason, a dart null instance is returned.
   dart_packet_t arr = dart_arr_init_va("isdbn", 1, "two", 3.14159, true);
   assert(dart_is_arr(&arr));
+  assert(dart_size(&arr) == 5);
 
   // Print our array, then free the string.
   char* arrjson = dart_to_json(&arr, NULL);
@@ -122,6 +124,7 @@ int main() {
   // but we'll show how to build an equivalent packet manually.
   dart_packet_t nested = dart_obj_init_va("addss", "args", 3.14159, 2.99792, "top", "secret");
   assert(dart_is_obj(&nested));
+  assert(dart_size(&nested) == 1);
 
   // Insert the object we just created at the end of the array.
   // Functions with "take" in their name "steal" the contents of the
@@ -172,7 +175,9 @@ int main() {
   assert(err == DART_NO_ERROR);
 
   // When calling resize, new indices are initialized to null.
+  assert(dart_size(&arr) == 3);
   err = dart_arr_resize(&arr, 5);
+  assert(dart_size(&arr) == 5);
   assert(err == DART_NO_ERROR);
   err = dart_arr_set_bool(&arr, 3, true);
   assert(err == DART_NO_ERROR);
@@ -208,8 +213,51 @@ int main() {
 // => "two"
 ```
 
+## Reference Counting Customization
+The **C++** layer of **Dart** allows full customization of its reference counting
+policies, the **C** layer is a bit more static and currently allows two separate
+reference counter implementations.
+To be specific, `DART_RC_SAFE` and `DART_RC_UNSAFE`
+(which correspond to thread-safe, and thread-unsafe, reference counting respectively).
+
+An example of a program that explicitly specifies the reference counter to use:
+```c
+#include <stdio.h>
+#include <assert.h>
+#include <dart/abi.h>
+
+int main() {
+  // All functions that construct a Dart instance have an _rc "overload"
+  // that allows the user to specify the reference counter implementation to use.
+  dart_packet_t json = dart_from_json_rc(DART_RC_UNSAFE, "{\"msg\":\"hello from dart!\"}");
+  assert(json.rtti.rc_id == DART_RC_UNSAFE);
+
+  // The reference counter will automatically be inherited from its parent object.
+  dart_packet_t msg = dart_obj_get(&json, "msg");
+  assert(msg.rtti.rc_id == DART_RC_UNSAFE);
+
+  // Stringification works the same
+  char* str = dart_to_json(&msg, NULL);
+  puts(str);
+  free(str);
+
+  // Disparate reference counters are not interoperable.
+  // An attempt to insert an instance with a different reference counter will fail.
+  dart_packet_t safe = dart_obj_init_rc(DART_RC_SAFE);
+  dart_err_t err = dart_obj_insert_dart(&json, "fails", &safe);
+  assert(err == DART_TYPE_ERROR);
+
+  // Cleanup works the same
+  dart_destroy(&safe);
+  dart_destroy(&msg);
+  dart_destroy(&json);
+}
+
+// => "hello from dart!"
+```
+
 ## Further Documentation/Examples
 Extremely detailed inline documentation is available for all functions in the
-Dart ABI, and can be generated via `doxygen`.
-Examples of usage for all functions can also be found in the ABI tests under
+**Dart ABI**, and can be generated via `doxygen`.
+Examples of usage for all functions can also be found in the **ABI** tests under
 the `test/` directory.
