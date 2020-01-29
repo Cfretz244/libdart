@@ -31,8 +31,8 @@ Finally, as **Dart** can also be useful when working with config files, it also
 supports parsing **YAML** via [libyaml](https://github.com/yaml/libyaml.git).
 
 ## Quick Start
-This readme covers a wide variety of information for the library, but to give some motivating
-examples, here are some at-a-glance examples. For examples of how to use the **C** binding layer,
+This readme covers a wide variety of information for the library, but for the impatient among us,
+here are some at-a-glance examples. For examples of how to use the **C** binding layer,
 see our [bindings](BINDINGS.md) document.
 
 **Dart** makes parsing a **JSON** string dead-simple, and crazy [fast](PARSING.md):
@@ -51,7 +51,7 @@ int main() {
 
 **Dart** automatically understands most built-in and `std` types
 (and can be extended to work with any type), making it extremely
-easy and natural to efficiently build **JSON**.
+easy and natural to build **JSON**.
 ```c++
 #include <dart.h>
 #include <iostream>
@@ -103,6 +103,33 @@ int main() {
 
 // => [1,"two",3.14159,true,null]
 // => [1, "two"]
+```
+
+**Dart** also makes it extremely easy to efficiently share data across machines/processes,
+without the receiver needing to reparse the data.
+```c++
+#include <dart.h>
+
+// Function sends data over the network,
+// through shared memory,
+// into a file,
+// wherever.
+size_t send_data(void const* bytes, size_t len);
+
+int main() {
+  // Suppose we have some very important data
+  dart::object data {"albums", dart::array {"dark side", "meddle", "animals"}};
+
+  // It can be finalized into a contiguous, architecture-independent, representation.
+  data.finalize();
+
+  // We can then pass the raw bytes along.
+  // On the receiver end, a new packet instance can be constructed from this buffer
+  // without any additional work or parsing.
+  auto bytes = data.get_bytes();
+  auto sent = send_data(bytes.data(), bytes.size());
+  assert(sent == bytes.size());
+}
 ```
 
 ## Compilation and Installation
