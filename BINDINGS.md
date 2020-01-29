@@ -177,8 +177,8 @@ int main() {
   // When calling resize, new indices are initialized to null.
   assert(dart_size(&arr) == 3);
   err = dart_arr_resize(&arr, 5);
-  assert(dart_size(&arr) == 5);
   assert(err == DART_NO_ERROR);
+  assert(dart_size(&arr) == 5);
   err = dart_arr_set_bool(&arr, 3, true);
   assert(err == DART_NO_ERROR);
 
@@ -246,6 +246,7 @@ int main() {
   dart_packet_t safe = dart_obj_init_rc(DART_RC_SAFE);
   dart_err_t err = dart_obj_insert_dart(&json, "fails", &safe);
   assert(err == DART_TYPE_ERROR);
+  puts(dart_get_error());
 
   // Cleanup works the same
   dart_destroy(&safe);
@@ -254,6 +255,7 @@ int main() {
 }
 
 // => "hello from dart!"
+// => Unsupported packet type insertion requested
 ```
 
 ## Further Documentation/Examples
