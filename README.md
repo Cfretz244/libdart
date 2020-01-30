@@ -4,7 +4,7 @@ Dart
 [![Build Status](https://travis-ci.com/target/libdart.svg?branch=master)](https://travis-ci.com/target/libdart)
 [![Build status](https://ci.appveyor.com/api/projects/status/fji5sgka5toa7ieq/branch/master?svg=true)](https://ci.appveyor.com/project/Cfretz244/libdart-lud7s/branch/master)
 [![Coverage Status](https://coveralls.io/repos/github/target/libdart/badge.svg?branch=master)](https://coveralls.io/github/target/libdart?branch=master)
-### A High Performance, Easy to Use, Networking Optimized, JSON Library
+## A High Performance, Easy to Use, Network Optimized, JSON Library
 **Dart** is both a wire-level binary **JSON** protocol, along with a high performance,
 and surprisingly high level, **C++** API to interact with that **JSON**.
 It is primarily optimized for on-the-wire representation size along with
@@ -189,7 +189,7 @@ can be found here: [parsing performance](PARSING.md).
 Overly detailed usage examples can be obtained from the `test/` directory, or by building the
 included documentation, but some examples of basic usage are included below. For examples of
 how to use the **C** binding layer, see our [bindings](BINDINGS.md) document.
-Parsing a JSON string with **Dart**:
+Parsing a **JSON** string with **Dart**:
 ```c++
 // Get some JSON from somewhere.
 std::string json = input.read();
@@ -229,7 +229,7 @@ switch (resp["code"].integer()) {
 }
 ```
 
-Build a JSON object from scratch:
+Build a **JSON** object from scratch:
 ```c++
 // Create a base object.
 // dart::packet::make_object can take arbitrarily many pairs of arguments.
@@ -246,7 +246,7 @@ obj.add_field("fib", dart::packet::make_array(1, 1, 2, 3, 5, 8, 13));
 do_something(obj.to_json());
 ```
 
-Preparing a JSON object to be sent over the network:
+Preparing a **JSON** object to be sent over the network:
 ```c++
 // Assuming the packet from the previous example:
 auto buffer = obj.finalize().get_bytes();
