@@ -53,11 +53,12 @@ doxygen
 ```
 For instructions on building for windows, see our [windows](WINDOWS.md) build instructions.
 
-**Dart** can optionally leverage [RapidJSON](https://github.com/Tencent/rapidjson),
-[sajson](https://github.com/chadaustin/sajson), 
-and [libyaml](https://github.com/yaml/libyaml.git), and will attempt to detect installations
-automatically while building, but can be independently specified with `-DDART_HAS_RAPIDJSON`,
-`-DDART_USE_SAJSON`, and `-DDART_HAS_YAML` preprocessor flags.
+While the **C++** layer can _optionally_ leverage [RapidJSON](https://github.com/Tencent/rapidjson)
+for **JSON** integration, silently removing parsing/serializing from/to **JSON** from the project
+if [RapidJSON](https://github.com/Tencent/rapidjson) isn't installed, the **C** layer _requires_
+that [RapidJSON](https://github.com/Tencent/rapidjson) be installed and in the include path.
+This is both for simplicity's sake, and to ensure that clients of the **ABI** don't have to worry
+about whether their installation was compiled with **JSON** support.
 
 ## Usage
 To illustrate usage for the bindings layer, this document will refer back to **C++** examples
