@@ -407,8 +407,12 @@ namespace dart {
 
       /*----- Types -----*/
 
+      // XXX: Hey Microsoft, so your compiler from 2015 doesn't support function type
+      // alias syntax from 2011, don't sweat it man.
+      // I mean, sure, literally EVERY other C++14 "compliant" compiler around can do it
+      // But don't let that get you down
       using value_type = raw_element;
-      using loading_function = value_type (gsl::byte const*, size_t idx);
+      typedef value_type (loading_function) (gsl::byte const*, size_t);
 
       /*----- Lifecycle Functions -----*/
 
@@ -458,10 +462,14 @@ namespace dart {
 
       /*----- Types -----*/
 
+      // XXX: Hey Microsoft, so your compiler from 2015 doesn't support function type
+      // alias syntax from 2011, don't sweat it man.
+      // I mean, sure, literally EVERY other C++14 "compliant" compiler around can do it
+      // But don't let that get you down
       using value_type = basic_heap<RefCount>;
       using reference = value_type const&;
-      using fields_deref_func = reference (typename packet_fields<RefCount>::const_iterator const&);
-      using elements_deref_func = reference (typename packet_elements<RefCount>::const_iterator const&);
+      typedef reference (fields_deref_func) (typename packet_fields<RefCount>::const_iterator const&);
+      typedef reference (elements_deref_func) (typename packet_elements<RefCount>::const_iterator const&);
 
       struct fields_layout {
         fields_deref_func* deref;
