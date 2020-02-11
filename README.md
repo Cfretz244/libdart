@@ -7,9 +7,8 @@
 ## A High Performance, Easy to Use, Network Optimized, JSON Library
 **Dart** is both a wire-level binary **JSON** protocol, along with a high performance,
 and surprisingly high level, **C++** API to interact with that **JSON**.
-It is primarily optimized for on-the-wire representation size along with
-efficiency of receiver-side interaction, however, it also allows for dynamic
-modification when necessary.
+It is primarily optimized for efficiency of receiver interaction and on-the-wire
+representation size, however, it also allows for dynamic modification when necessary.
 
 **Dart** can be used in any application as a dead-simple, fast, and lightweight
 **JSON** parser, but it first and foremost targets real-time stream processing engines
