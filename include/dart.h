@@ -4415,7 +4415,21 @@ namespace dart {
 
       /*----- Public Types -----*/
 
+      class iterator;
+
       using type = detail::type;
+
+      // For situations where a Dart type is masquerading as a std type.
+      using size_type = size_t;
+      using difference_type = ssize_t;
+      using value_type = basic_heap;
+      using reference = basic_heap;
+      using pointer = basic_heap;
+      using const_reference = basic_heap;
+      using const_pointer = basic_heap;
+      using const_iterator = basic_heap;
+      using reverse_iterator = std::reverse_iterator<iterator>;
+      using const_reverse_iterator = reverse_iterator;
 
       /**
        *  @brief
@@ -4444,10 +4458,10 @@ namespace dart {
 
           /*----- Public Types -----*/
 
-          using difference_type = ssize_t;
-          using value_type = basic_heap;
-          using reference = value_type;
-          using pointer = value_type;
+          using difference_type = basic_heap::difference_type;
+          using value_type = basic_heap::value_type;
+          using reference = basic_heap::value_type;
+          using pointer = basic_heap::value_type;
           using iterator_category = std::input_iterator_tag;
 
           /*----- Lifecycle Functions -----*/
@@ -4513,9 +4527,6 @@ namespace dart {
         basic_heap
       >;
 
-      using size_type = size_t;
-      using reverse_iterator = std::reverse_iterator<iterator>;
-
       /*----- Lifecycle Functions -----*/
 
       /**
@@ -4578,6 +4589,20 @@ namespace dart {
 #if !DART_USING_MSVC
       basic_heap& operator =(basic_heap&&) && = delete;
 #endif
+
+      template <class T, class EnableIf =
+        std::enable_if_t<
+          !std::is_same<
+            std::decay_t<T>,
+            basic_heap
+          >::value
+          &&
+          refcount::is_owner<RefCount>::value
+          &&
+          convert::is_castable<T, basic_heap>::value
+        >
+      >
+      basic_heap& operator =(T&& other) &;
 
       /**
        *  @brief
@@ -7042,7 +7067,21 @@ namespace dart {
 
       /*----- Public Types -----*/
 
+      class iterator;
+
       using type = detail::type;
+
+      // For situations where a Dart type is masquerading as a std type.
+      using size_type = size_t;
+      using difference_type = ssize_t;
+      using value_type = basic_buffer;
+      using reference = basic_buffer;
+      using pointer = basic_buffer;
+      using const_reference = basic_buffer;
+      using const_pointer = basic_buffer;
+      using const_iterator = basic_buffer;
+      using reverse_iterator = std::reverse_iterator<iterator>;
+      using const_reverse_iterator = reverse_iterator;
 
       /**
        *  @brief
@@ -7071,10 +7110,10 @@ namespace dart {
 
           /*----- Public Types -----*/
 
-          using difference_type = ssize_t;
-          using value_type = basic_buffer;
-          using reference = value_type;
-          using pointer = value_type;
+          using difference_type = basic_buffer::difference_type;
+          using value_type = basic_buffer::value_type;
+          using reference = basic_buffer::value_type;
+          using pointer = basic_buffer::value_type;
           using iterator_category = std::input_iterator_tag;
 
           /*----- Lifecycle Functions -----*/
@@ -7143,9 +7182,6 @@ namespace dart {
         basic_buffer<view_ptr_context<RefCount>::template view_ptr>,
         basic_buffer
       >;
-
-      using size_type = size_t;
-      using reverse_iterator = std::reverse_iterator<iterator>;
 
       /*----- Lifecycle Functions -----*/
 
@@ -9388,8 +9424,22 @@ namespace dart {
 
       /*----- Public Types -----*/
 
+      class iterator;
+
       // Bring into the scope of the main class.
       using type = detail::type;
+
+      // For situations where a Dart type is masquerading as a std type.
+      using size_type = size_t;
+      using difference_type = ssize_t;
+      using value_type = basic_packet;
+      using reference = value_type;
+      using pointer = value_type;
+      using const_reference = value_type;
+      using const_pointer = value_type;
+      using const_iterator = iterator;
+      using reverse_iterator = std::reverse_iterator<iterator>;
+      using const_reverse_iterator = reverse_iterator;
 
       /**
        *  @brief
@@ -9418,10 +9468,10 @@ namespace dart {
 
           /*----- Publicly Declared Types -----*/
 
-          using difference_type = ssize_t;
-          using value_type = basic_packet;
-          using reference = value_type;
-          using pointer = value_type;
+          using difference_type = basic_packet::difference_type;
+          using value_type = basic_packet::value_type;
+          using reference = basic_packet::value_type;
+          using pointer = basic_packet::value_type;
           using iterator_category = std::input_iterator_tag;
 
           /*----- Lifecycle Functions -----*/
@@ -9491,9 +9541,6 @@ namespace dart {
         basic_packet<view_ptr_context<RefCount>::template view_ptr>,
         basic_packet
       >;
-
-      using size_type = size_t;
-      using reverse_iterator = std::reverse_iterator<iterator>;
 
       /*----- Lifecycle Functions -----*/
 
@@ -9662,6 +9709,20 @@ namespace dart {
 #if !DART_USING_MSVC
       basic_packet& operator =(basic_packet&&) && = delete;
 #endif
+
+      template <class T, class EnableIf =
+        std::enable_if_t<
+          !std::is_same<
+            std::decay_t<T>,
+            basic_packet
+          >::value
+          &&
+          refcount::is_owner<RefCount>::value
+          &&
+          convert::is_castable<T, basic_packet>::value
+        >
+      >
+      basic_packet& operator =(T&& other) &;
 
       /**
        *  @brief

@@ -13,6 +13,20 @@
 
 namespace dart {
 
+  template <template <class> class RefCount>
+  template <class T, class EnableIf>
+  basic_heap<RefCount>& basic_heap<RefCount>::operator =(T&& other) & {
+    *this = convert::cast<basic_heap>(std::forward<T>(other));
+    return *this;
+  }
+
+  template <template <class> class RefCount>
+  template <class T, class EnableIf>
+  basic_packet<RefCount>& basic_packet<RefCount>::operator =(T&& other) & {
+    get_heap() = std::forward<T>(other);
+    return *this;
+  }
+
   template <class Object>
   template <class OtherObject>
   bool basic_object<Object>::operator ==(basic_object<OtherObject> const& other) const noexcept {
