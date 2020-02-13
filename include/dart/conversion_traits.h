@@ -23,7 +23,7 @@ namespace dart {
     template <class T>
     struct to_dart {
       template <class Packet>
-      static Packet cast(meta::nonesuch);
+      Packet cast(meta::nonesuch);
     };
 
     namespace detail {
@@ -122,7 +122,8 @@ namespace dart {
       // Makes the question of whether a user conversion is defined SFINAEable
       // so that it can be used in meta::is_detected.
       template <class T, class Packet>
-      using user_cast_t = decltype(to_dart<std::decay_t<T>>::template cast<Packet>(std::declval<T>()));
+      using user_cast_t =
+          decltype(std::declval<to_dart<std::decay_t<T>>>().template cast<Packet>(std::declval<T>()));
 
       // Switch table implementation for type conversions.
       template <class T>
@@ -214,7 +215,7 @@ namespace dart {
         // that has a defined conversion.
         template <class Packet, class T>
         static Packet cast(T&& val) {
-          return to_dart<std::decay_t<T>>::template cast<Packet>(std::forward<T>(val));
+          return to_dart<std::decay_t<T>> {}.template cast<Packet>(std::forward<T>(val));
         }
       };
 
@@ -372,7 +373,7 @@ namespace dart {
           convert::is_castable<T, Packet>::value
         >
       >
-      static Packet cast(std::vector<T, Alloc> const& vec) {
+      Packet cast(std::vector<T, Alloc> const& vec) {
         auto pkt = Packet::make_array();
         for (auto& val : vec) pkt.push_back(val);
         return pkt;
@@ -382,7 +383,7 @@ namespace dart {
           convert::is_castable<T, Packet>::value
         >
       >
-      static Packet cast(std::vector<T, Alloc>&& vec) {
+      Packet cast(std::vector<T, Alloc>&& vec) {
         auto pkt = Packet::make_array();
         for (auto& val : vec) pkt.push_back(std::move(val));
         return pkt;
@@ -397,7 +398,7 @@ namespace dart {
           convert::is_castable<T, Packet>::value
         >
       >
-      static Packet cast(std::array<T, len> const& arr) {
+      Packet cast(std::array<T, len> const& arr) {
         auto pkt = Packet::make_array();
         for (auto& val : arr) pkt.push_back(val);
         return pkt;
@@ -407,7 +408,7 @@ namespace dart {
           convert::is_castable<T, Packet>::value
         >
       >
-      static Packet cast(std::array<T, len>&& arr) {
+      Packet cast(std::array<T, len>&& arr) {
         auto pkt = Packet::make_array();
         for (auto& val : arr) pkt.push_back(std::move(val));
         return pkt;
@@ -424,7 +425,7 @@ namespace dart {
           convert::is_castable<Value, Packet>::value
         >
       >
-      static Packet cast(std::map<Key, Value, Comp, Alloc> const& map) {
+      Packet cast(std::map<Key, Value, Comp, Alloc> const& map) {
         auto obj = Packet::make_object();
         for (auto& pair : map) obj.add_field(pair.first, pair.second);
         return obj;
@@ -436,7 +437,7 @@ namespace dart {
           convert::is_castable<Value, Packet>::value
         >
       >
-      static Packet cast(std::map<Key, Value, Comp, Alloc>&& map) {
+      Packet cast(std::map<Key, Value, Comp, Alloc>&& map) {
         auto obj = Packet::make_object();
         for (auto& pair : map) obj.add_field(std::move(pair).first, std::move(pair).second);
         return obj;
@@ -453,7 +454,7 @@ namespace dart {
           convert::is_castable<Value, Packet>::value
         >
       >
-      static Packet cast(std::unordered_map<Key, Value, Hash, Equal, Alloc> const& map) {
+      Packet cast(std::unordered_map<Key, Value, Hash, Equal, Alloc> const& map) {
         auto obj = Packet::make_object();
         for (auto& pair : map) obj.add_field(pair.first, pair.second);
         return obj;
@@ -465,7 +466,7 @@ namespace dart {
           convert::is_castable<Value, Packet>::value
         >
       >
-      static Packet cast(std::unordered_map<Key, Value, Hash, Equal, Alloc>&& map) {
+      Packet cast(std::unordered_map<Key, Value, Hash, Equal, Alloc>&& map) {
         auto obj = Packet::make_object();
         for (auto& pair : map) obj.add_field(std::move(pair).first, std::move(pair).second);
         return obj;
@@ -480,7 +481,7 @@ namespace dart {
           convert::is_castable<T, Packet>::value
         >
       >
-      static Packet cast(shim::optional<T> const& opt) {
+      Packet cast(shim::optional<T> const& opt) {
         if (opt) return convert::cast<Packet>(*opt);
         else return Packet::make_null();
       }
@@ -489,7 +490,7 @@ namespace dart {
           convert::is_castable<T, Packet>::value
         >
       >
-      static Packet cast(shim::optional<T>&& opt) {
+      Packet cast(shim::optional<T>&& opt) {
         if (opt) return convert::cast<Packet>(std::move(*opt));
         else return Packet::make_null();
       }
@@ -505,7 +506,7 @@ namespace dart {
           >::value
         >
       >
-      static Packet cast(shim::variant<Ts...> const& var) {
+      Packet cast(shim::variant<Ts...> const& var) {
         return shim::visit([] (auto& val) { return convert::cast<Packet>(val); }, var);
       }
       template <class Packet, class =
@@ -515,7 +516,7 @@ namespace dart {
           >::value
         >
       >
-      static Packet cast(shim::variant<Ts...>&& var) {
+      Packet cast(shim::variant<Ts...>&& var) {
         return shim::visit([] (auto&& val) { return convert::cast<Packet>(std::move(val)); }, std::move(var));
       }
     };
@@ -524,7 +525,7 @@ namespace dart {
     template <class... Ts>
     struct to_dart<std::tuple<Ts...>> {
       template <class Packet, class Tuple, size_t... idxs>
-      static Packet unpack(Tuple&& tup, std::index_sequence<idxs...>) {
+      Packet unpack(Tuple&& tup, std::index_sequence<idxs...>) {
         return Packet::make_array(std::get<idxs>(std::forward<Tuple>(tup))...);
       }
 
@@ -535,7 +536,7 @@ namespace dart {
           >::value
         >
       >
-      static Packet cast(std::tuple<Ts...> const& tup) {
+      Packet cast(std::tuple<Ts...> const& tup) {
         return unpack<Packet>(tup, std::index_sequence_for<Ts...> {});
       }
       template <class Packet, class =
@@ -545,7 +546,7 @@ namespace dart {
           >::value
         >
       >
-      static Packet cast(std::tuple<Ts...>&& tup) {
+      Packet cast(std::tuple<Ts...>&& tup) {
         return unpack<Packet>(std::move(tup), std::index_sequence_for<Ts...> {});
       }
     };
@@ -554,7 +555,7 @@ namespace dart {
     template <class T, T val>
     struct to_dart<std::integral_constant<T, val>> {
       template <class Packet>
-      static Packet cast(std::integral_constant<T, val>) {
+      Packet cast(std::integral_constant<T, val>) {
         return convert::cast<Packet>(val);
       }
     };
