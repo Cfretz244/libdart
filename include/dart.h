@@ -1447,6 +1447,7 @@ namespace dart {
 
       // Allow type conversion logic to work.
       friend struct convert::detail::caster_impl<convert::detail::wrapper_tag>;
+      friend struct convert::detail::equals_impl<convert::detail::wrapper_tag>;
 
       // We're friends of all other basic_object specializations.
       template <class>
@@ -2634,6 +2635,7 @@ namespace dart {
 
       // Allow type conversion logic to work.
       friend struct convert::detail::caster_impl<convert::detail::wrapper_tag>;
+      friend struct convert::detail::equals_impl<convert::detail::wrapper_tag>;
 
       // We're friends of all other basic_array specializations.
       template <class>
@@ -3103,6 +3105,7 @@ namespace dart {
 
       // Allow type conversion logic to work.
       friend struct convert::detail::caster_impl<convert::detail::wrapper_tag>;
+      friend struct convert::detail::equals_impl<convert::detail::wrapper_tag>;
 
       // We're friends of all other basic_string specializations.
       template <class>
@@ -3579,6 +3582,7 @@ namespace dart {
 
       // Allow type conversion logic to work.
       friend struct convert::detail::caster_impl<convert::detail::wrapper_tag>;
+      friend struct convert::detail::equals_impl<convert::detail::wrapper_tag>;
 
       // We're friends of all other basic_number specializations.
       template <class>
@@ -4011,6 +4015,7 @@ namespace dart {
 
       // Allow type conversion logic to work.
       friend struct convert::detail::caster_impl<convert::detail::wrapper_tag>;
+      friend struct convert::detail::equals_impl<convert::detail::wrapper_tag>;
 
       // We're friends of all other basic_flag specializations.
       template <class>
@@ -4359,6 +4364,7 @@ namespace dart {
 
       // Allow type conversion logic to work.
       friend struct convert::detail::caster_impl<convert::detail::wrapper_tag>;
+      friend struct convert::detail::equals_impl<convert::detail::wrapper_tag>;
 
   };
 
@@ -7025,6 +7031,13 @@ namespace dart {
       friend struct convert::detail::caster_impl<convert::detail::integer_tag>;
       friend struct convert::detail::caster_impl<convert::detail::decimal_tag>;
       friend struct convert::detail::caster_impl<convert::detail::string_tag>;
+
+      // All equality check logic to work.
+      friend struct convert::detail::equals_impl<convert::detail::null_tag>;
+      friend struct convert::detail::equals_impl<convert::detail::boolean_tag>;
+      friend struct convert::detail::equals_impl<convert::detail::integer_tag>;
+      friend struct convert::detail::equals_impl<convert::detail::decimal_tag>;
+      friend struct convert::detail::equals_impl<convert::detail::string_tag>;
 
       template <template <class> class LhsRC, template <class> class RhsRC>
       friend bool operator ==(basic_buffer<LhsRC> const&, basic_heap<RhsRC> const&);
@@ -12645,6 +12658,13 @@ namespace dart {
       friend struct convert::detail::caster_impl<convert::detail::integer_tag>;
       friend struct convert::detail::caster_impl<convert::detail::decimal_tag>;
       friend struct convert::detail::caster_impl<convert::detail::string_tag>;
+
+      // All equality check logic to work.
+      friend struct convert::detail::equals_impl<convert::detail::null_tag>;
+      friend struct convert::detail::equals_impl<convert::detail::boolean_tag>;
+      friend struct convert::detail::equals_impl<convert::detail::integer_tag>;
+      friend struct convert::detail::equals_impl<convert::detail::decimal_tag>;
+      friend struct convert::detail::equals_impl<convert::detail::string_tag>;
 
       template <template <class> class LhsRC, template <class> class RhsRC>
       friend bool operator ==(basic_buffer<LhsRC> const&, basic_packet<RhsRC> const&);

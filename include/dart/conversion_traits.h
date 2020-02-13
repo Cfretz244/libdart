@@ -24,6 +24,8 @@ namespace dart {
     struct to_dart {
       template <class Packet>
       Packet cast(meta::nonesuch);
+      template <class Packet>
+      bool equal(Packet const&, meta::nonesuch);
     };
 
     namespace detail {
@@ -36,6 +38,54 @@ namespace dart {
       struct wrapper_tag {};
       struct dart_tag {};
       struct user_tag {};
+
+      template <class Lhs, class Rhs>
+      bool generic_compare(Lhs const& lhs, Rhs const& rhs) {
+        // Make sure they're at least of the same type.
+        if (lhs.get_type() != rhs.get_type()) return false;
+
+        // Perform type specific comparisons.
+        switch (lhs.get_type()) {
+          case dart::detail::type::object:
+            {
+              // Bail early if we can.
+              if (lhs.size() != rhs.size()) return false;
+
+              // Ouch.
+              // Iterates over rhs and looks up into lhs because lhs is the finalized
+              // object and lookups should be significantly faster on it.
+              typename decltype(rhs)::iterator k, v;
+              std::tie(k, v) = rhs.kvbegin();
+              while (v != rhs.end()) {
+                if (*v != lhs[*k]) return false;
+                ++k, ++v;
+              }
+              return true;
+            }
+          case dart::detail::type::array:
+            {
+              // Bail early if we can.
+              if (lhs.size() != rhs.size()) return false;
+
+              // Ouch.
+              for (auto i = 0U; i < lhs.size(); ++i) {
+                if (lhs[i] != rhs[i]) return false;
+              }
+              return true;
+            }
+          case dart::detail::type::string:
+            return lhs.strv() == rhs.strv();
+          case dart::detail::type::integer:
+            return lhs.integer() == rhs.integer();
+          case dart::detail::type::decimal:
+            return lhs.decimal() == rhs.decimal();
+          case dart::detail::type::boolean:
+            return lhs.boolean() == rhs.boolean();
+          default:
+            DART_ASSERT(lhs.is_null());
+            return true;
+        }
+      }
 
       // Meta-function normalizes any conceivable type into one of
       // eight cases that can then be individually processed.
@@ -124,6 +174,45 @@ namespace dart {
       template <class T, class Packet>
       using user_cast_t =
           decltype(std::declval<to_dart<std::decay_t<T>>>().template cast<Packet>(std::declval<T>()));
+
+      // Makes the question of whether a user equality check is defined SFINAEable
+      // so that it can be used in meta::is_detected.
+      template <class T, class Packet>
+      using user_equal_t =
+          decltype(std::declval<to_dart<std::decay_t<T>>>().template
+                equal<Packet>(std::declval<Packet const&>(), std::declval<T>()));
+
+      // Calculates if two dart types are using the same reference counter
+      // implementation, even if the two dart types aren't the same.
+      template <class PacketOne, class PacketTwo>
+      struct same_refcounter : std::false_type {};
+      template <template <class> class RefCount,
+               template <template <class> class> class PacketOne,
+               template <template <class> class> class PacketTwo>
+      struct same_refcounter<PacketOne<RefCount>, PacketTwo<RefCount>> : std::true_type {};
+
+      // Calculates if two dart types are using the same base template,
+      // event if the supplied reference counters aren't the same.
+      template <class PacketOne, class PacketTwo>
+      struct same_packet : std::false_type {};
+      template <template <class> class LhsRC,
+               template <class> class RhsRC,
+               template <template <class> class> class Packet>
+      struct same_packet<Packet<LhsRC>, Packet<RhsRC>> : std::true_type {};
+
+      // Calculates if two Dart wrapper types are using the same reference counter
+      // implementation, even if those two wrapper types are using different
+      // implementation types.
+      template <class Packet, class Wrapper>
+      struct same_wrapped_refcounter : std::false_type {};
+      template <template <class> class RefCount,
+               template <class> class Wrapper,
+               template <template <class> class> class PacketOne,
+               template <template <class> class> class PacketTwo>
+      struct same_wrapped_refcounter<
+        PacketOne<RefCount>,
+        Wrapper<PacketTwo<RefCount>>
+      > : std::true_type {};
 
       // Switch table implementation for type conversions.
       template <class T>
@@ -219,28 +308,95 @@ namespace dart {
         }
       };
 
-      // Calculates if two dart types are using the same reference counter
-      // implementation, even if the two dart types aren't the same.
-      template <class PacketOne, class PacketTwo>
-      struct same_refcounter : std::false_type {};
-      template <template <class> class RefCount,
-               template <template <class> class> class PacketOne,
-               template <template <class> class> class PacketTwo>
-      struct same_refcounter<PacketOne<RefCount>, PacketTwo<RefCount>> : std::true_type {};
+      template <class T>
+      struct equals_impl;
+      template <>
+      struct equals_impl<null_tag> {
+        template <class Packet>
+        static bool equal(Packet const& pkt, std::nullptr_t) {
+          return pkt.is_null();
+        }
+      };
+      template <>
+      struct equals_impl<boolean_tag> {
+        template <class Packet>
+        static bool equal(Packet const& pkt, bool val) {
+          return pkt.is_boolean() && pkt.boolean() == val;
+        }
+      };
+      template <>
+      struct equals_impl<integer_tag> {
+        template <class Packet>
+        static bool equal(Packet const& pkt, int64_t val) {
+          return pkt.is_integer() && pkt.integer() == val;
+        }
+      };
+      template <>
+      struct equals_impl<decimal_tag> {
+        template <class Packet>
+        static bool equal(Packet const& pkt, double val) {
+          return pkt.is_decimal() && pkt.decimal() == val;
+        }
+      };
+      template <>
+      struct equals_impl<string_tag> {
+        template <class Packet>
+        static bool equal(Packet const& pkt, shim::string_view val) {
+          return pkt.is_str() && pkt.strv() == val;
+        }
+      };
+      template <>
+      struct equals_impl<dart_tag> {
+        // Handles the case where the packet templates in use
+        // are the same, even if the chosen reference counter is not.
+        // We can use the built in equality operator in this case.
+        template <class LhsPacket, class RhsPacket,
+          std::enable_if_t<
+            same_packet<
+              LhsPacket,
+              RhsPacket
+            >::value
+          >* = nullptr
+        >
+        static bool equal(LhsPacket const& lhs, RhsPacket const& rhs) {
+          return lhs == rhs;
+        }
 
-      // Calculates if two Dart wrapper types are using the same reference counter
-      // implementation, even if those two wrapper types are using different
-      // implementation types.
-      template <class Packet, class Wrapper>
-      struct same_wrapped_refcounter : std::false_type {};
-      template <template <class> class RefCount,
-               template <class> class Wrapper,
-               template <template <class> class> class PacketOne,
-               template <template <class> class> class PacketTwo>
-      struct same_wrapped_refcounter<
-        PacketOne<RefCount>,
-        Wrapper<PacketTwo<RefCount>>
-      > : std::true_type {};
+        // Handles the case where the packet templates in use
+        // are NOT the same, regardless of the chosen reference counter.
+        // This isn't defined, so we need to implement it ourselves.
+        template <class LhsPacket, class RhsPacket,
+          std::enable_if_t<
+            !same_packet<
+              LhsPacket,
+              RhsPacket
+            >::value
+          >* = nullptr
+        >
+        static bool equal(LhsPacket const& lhs, RhsPacket const& rhs) {
+          // Lookups are faster on finalized objects, so dispatch such that
+          // we attempt to perform lookups against the finalized object.
+          if (lhs.is_finalized()) {
+            return generic_compare(lhs, rhs);
+          } else {
+            return generic_compare(rhs, lhs);
+          }
+        }
+      };
+      template <>
+      struct equals_impl<wrapper_tag> {
+        template <class Packet, class Wrapper>
+        static bool equal(Packet const& pkt, Wrapper const& wrap) {
+          return equals_impl<dart_tag>::equal(pkt, wrap.val);
+        }
+      };
+      template <>
+      struct equals_impl<user_tag> {
+        template <class Packet, class T>
+        static bool equal(Packet const& pkt, T const& val) {
+          return to_dart<std::decay_t<T>> {}.template equal(pkt, val);
+        }
+      };
 
     }
 
@@ -270,7 +426,7 @@ namespace dart {
      *    template <>
      *    struct to_dart<my_string> {
      *      template <class Packet>
-     *      static Packet cast(my_string const& s) {
+     *      Packet cast(my_string const& s) {
      *        return Packet::make_string(s.str);
      *      }
      *    };
@@ -280,6 +436,11 @@ namespace dart {
     template <class Packet = dart::basic_packet<std::shared_ptr>, class T>
     decltype(auto) cast(T&& val) {
       return detail::caster_impl<detail::normalize_t<T>>::template cast<Packet>(std::forward<T>(val));
+    }
+
+    template <class Packet, class T>
+    bool equal(Packet const& pkt, T const& val) {
+      return detail::equals_impl<detail::normalize_t<T>>::template equal(pkt, val);
     }
 
     /**
@@ -345,6 +506,39 @@ namespace dart {
             detail::user_cast_t,
             T,
             TargetPacket
+          >
+        >
+      >
+    {};
+
+    template <class T, class Packet, class Normalized = detail::normalize_t<T>>
+    struct is_comparable :
+      meta::disjunction<
+        // We can compare if given a builtin or dart type
+        meta::contained<
+          Normalized,
+          convert::detail::dart_tag,
+          convert::detail::wrapper_tag,
+          convert::detail::string_tag,
+          convert::detail::decimal_tag,
+          convert::detail::integer_tag,
+          convert::detail::boolean_tag,
+          convert::detail::null_tag
+        >,
+
+        // If we've been given a user type...
+        meta::conjunction<
+          std::is_same<
+            Normalized,
+            convert::detail::user_tag
+          >,
+
+          // We can do it if the user has specialized the user
+          // equality struct.
+          meta::is_detected<
+            detail::user_equal_t,
+            Packet,
+            T
           >
         >
       >
