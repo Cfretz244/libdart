@@ -1099,7 +1099,17 @@ namespace dart {
        *  Can be useful for efficiently implementing wrapper API behavior
        *  in some spots.
        */
-      auto dynamic() const noexcept -> value_type const&;
+      auto dynamic() const& noexcept -> value_type const&;
+
+      /**
+       *  @brief
+       *  Helper function returns a const& to the underlying dynamic type.
+       *
+       *  @details
+       *  Can be useful for efficiently implementing wrapper API behavior
+       *  in some spots.
+       */
+      auto dynamic() && noexcept -> value_type&&;
 
       /*----- Introspection Functions -----*/
 
@@ -1444,10 +1454,6 @@ namespace dart {
       value_type val;
 
       /*----- Friends -----*/
-
-      // Allow type conversion logic to work.
-      friend struct convert::detail::caster_impl<convert::detail::wrapper_tag>;
-      friend struct convert::detail::equals_impl<convert::detail::wrapper_tag>;
 
       // We're friends of all other basic_object specializations.
       template <class>
@@ -2436,7 +2442,17 @@ namespace dart {
        *  Can be useful for efficiently implementing wrapper API behavior
        *  in some spots.
        */
-      auto dynamic() const noexcept -> value_type const&;
+      auto dynamic() const& noexcept -> value_type const&;
+
+      /**
+       *  @brief
+       *  Helper function returns a const& to the underlying dynamic type.
+       *
+       *  @details
+       *  Can be useful for efficiently implementing wrapper API behavior
+       *  in some spots.
+       */
+      auto dynamic() && noexcept -> value_type&&;
 
       /*----- Introspection Functions -----*/
 
@@ -2632,10 +2648,6 @@ namespace dart {
       value_type val;
 
       /*----- Friends -----*/
-
-      // Allow type conversion logic to work.
-      friend struct convert::detail::caster_impl<convert::detail::wrapper_tag>;
-      friend struct convert::detail::equals_impl<convert::detail::wrapper_tag>;
 
       // We're friends of all other basic_array specializations.
       template <class>
@@ -3012,7 +3024,17 @@ namespace dart {
        *  Can be useful for efficiently implementing wrapper API behavior
        *  in some spots.
        */
-      auto dynamic() const noexcept -> value_type const&;
+      auto dynamic() const& noexcept -> value_type const&;
+
+      /**
+       *  @brief
+       *  Helper function returns a const& to the underlying dynamic type.
+       *
+       *  @details
+       *  Can be useful for efficiently implementing wrapper API behavior
+       *  in some spots.
+       */
+      auto dynamic() && noexcept -> value_type&&;
 
       /*----- Introspection Functions -----*/
 
@@ -3102,10 +3124,6 @@ namespace dart {
       value_type val;
 
       /*----- Friends -----*/
-
-      // Allow type conversion logic to work.
-      friend struct convert::detail::caster_impl<convert::detail::wrapper_tag>;
-      friend struct convert::detail::equals_impl<convert::detail::wrapper_tag>;
 
       // We're friends of all other basic_string specializations.
       template <class>
@@ -3489,7 +3507,17 @@ namespace dart {
        *  Can be useful for efficiently implementing wrapper API behavior
        *  in some spots.
        */
-      auto dynamic() const noexcept -> value_type const&;
+      auto dynamic() const& noexcept -> value_type const&;
+
+      /**
+       *  @brief
+       *  Helper function returns a const& to the underlying dynamic type.
+       *
+       *  @details
+       *  Can be useful for efficiently implementing wrapper API behavior
+       *  in some spots.
+       */
+      auto dynamic() && noexcept -> value_type&&;
 
       /*----- Introspection Functions -----*/
 
@@ -3579,10 +3607,6 @@ namespace dart {
       value_type val;
 
       /*----- Friends -----*/
-
-      // Allow type conversion logic to work.
-      friend struct convert::detail::caster_impl<convert::detail::wrapper_tag>;
-      friend struct convert::detail::equals_impl<convert::detail::wrapper_tag>;
 
       // We're friends of all other basic_number specializations.
       template <class>
@@ -3922,7 +3946,17 @@ namespace dart {
        *  Can be useful for efficiently implementing wrapper API behavior
        *  in some spots.
        */
-      auto dynamic() const noexcept -> value_type const&;
+      auto dynamic() const& noexcept -> value_type const&;
+
+      /**
+       *  @brief
+       *  Helper function returns a const& to the underlying dynamic type.
+       *
+       *  @details
+       *  Can be useful for efficiently implementing wrapper API behavior
+       *  in some spots.
+       */
+      auto dynamic() && noexcept -> value_type&&;
 
       /*----- Introspection Functions -----*/
 
@@ -4012,10 +4046,6 @@ namespace dart {
       value_type val;
 
       /*----- Friends -----*/
-
-      // Allow type conversion logic to work.
-      friend struct convert::detail::caster_impl<convert::detail::wrapper_tag>;
-      friend struct convert::detail::equals_impl<convert::detail::wrapper_tag>;
 
       // We're friends of all other basic_flag specializations.
       template <class>
@@ -4271,7 +4301,17 @@ namespace dart {
        *  Can be useful for efficiently implementing wrapper API behavior
        *  in some spots.
        */
-      auto dynamic() const noexcept -> value_type const&;
+      auto dynamic() const& noexcept -> value_type const&;
+
+      /**
+       *  @brief
+       *  Helper function returns a const& to the underlying dynamic type.
+       *
+       *  @details
+       *  Can be useful for efficiently implementing wrapper API behavior
+       *  in some spots.
+       */
+      auto dynamic() && noexcept -> value_type&&;
 
       /*----- Introspection Functions -----*/
 
@@ -4359,12 +4399,6 @@ namespace dart {
       /*----- Private Members -----*/
 
       value_type val;
-
-      /*----- Friends -----*/
-
-      // Allow type conversion logic to work.
-      friend struct convert::detail::caster_impl<convert::detail::wrapper_tag>;
-      friend struct convert::detail::equals_impl<convert::detail::wrapper_tag>;
 
   };
 
@@ -7025,22 +7059,6 @@ namespace dart {
 
       /*----- Friends -----*/
 
-      // Allow type conversion logic to work.
-      friend struct convert::detail::caster_impl<convert::detail::null_tag>;
-      friend struct convert::detail::caster_impl<convert::detail::boolean_tag>;
-      friend struct convert::detail::caster_impl<convert::detail::integer_tag>;
-      friend struct convert::detail::caster_impl<convert::detail::decimal_tag>;
-      friend struct convert::detail::caster_impl<convert::detail::string_tag>;
-
-      // All equality check logic to work.
-      friend struct convert::detail::equals_impl<convert::detail::null_tag>;
-      friend struct convert::detail::equals_impl<convert::detail::boolean_tag>;
-      friend struct convert::detail::equals_impl<convert::detail::integer_tag>;
-      friend struct convert::detail::equals_impl<convert::detail::decimal_tag>;
-      friend struct convert::detail::equals_impl<convert::detail::string_tag>;
-
-      template <template <class> class LhsRC, template <class> class RhsRC>
-      friend bool operator ==(basic_buffer<LhsRC> const&, basic_heap<RhsRC> const&);
       friend size_t detail::sso_bytes<RefCount>();
       friend class detail::object<RefCount>;
       friend class detail::array<RefCount>;
@@ -9382,8 +9400,6 @@ namespace dart {
       template <template <class> class RC>
       friend class basic_packet;
       friend struct detail::buffer_builder<RefCount>;
-      template <template <class> class LhsRC, template <class> class RhsRC>
-      friend bool operator ==(basic_buffer<LhsRC> const&, basic_heap<RhsRC> const&);
 
   };
 
@@ -12652,24 +12668,6 @@ namespace dart {
 
       /*----- Friends -----*/
 
-      // Allow type conversion logic to work.
-      friend struct convert::detail::caster_impl<convert::detail::null_tag>;
-      friend struct convert::detail::caster_impl<convert::detail::boolean_tag>;
-      friend struct convert::detail::caster_impl<convert::detail::integer_tag>;
-      friend struct convert::detail::caster_impl<convert::detail::decimal_tag>;
-      friend struct convert::detail::caster_impl<convert::detail::string_tag>;
-
-      // All equality check logic to work.
-      friend struct convert::detail::equals_impl<convert::detail::null_tag>;
-      friend struct convert::detail::equals_impl<convert::detail::boolean_tag>;
-      friend struct convert::detail::equals_impl<convert::detail::integer_tag>;
-      friend struct convert::detail::equals_impl<convert::detail::decimal_tag>;
-      friend struct convert::detail::equals_impl<convert::detail::string_tag>;
-
-      template <template <class> class LhsRC, template <class> class RhsRC>
-      friend bool operator ==(basic_buffer<LhsRC> const&, basic_packet<RhsRC> const&);
-      template <template <class> class LhsRC, template <class> class RhsRC>
-      friend bool operator ==(basic_heap<LhsRC> const&, basic_packet<RhsRC> const&);
       template <template <class> class RC>
       friend class dart::basic_packet;
       friend class detail::object<RefCount>;

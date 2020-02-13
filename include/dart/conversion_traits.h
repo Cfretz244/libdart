@@ -25,7 +25,7 @@ namespace dart {
       template <class Packet>
       Packet cast(meta::nonesuch);
       template <class Packet>
-      bool equal(Packet const&, meta::nonesuch);
+      bool compare(Packet const&, meta::nonesuch);
     };
 
     namespace detail {
@@ -175,12 +175,12 @@ namespace dart {
       using user_cast_t =
           decltype(std::declval<to_dart<std::decay_t<T>>>().template cast<Packet>(std::declval<T>()));
 
-      // Makes the question of whether a user equality check is defined SFINAEable
+      // Makes the question of whether a user comparison is defined SFINAEable
       // so that it can be used in meta::is_detected.
       template <class T, class Packet>
-      using user_equal_t =
+      using user_compare_t =
           decltype(std::declval<to_dart<std::decay_t<T>>>().template
-                equal<Packet>(std::declval<Packet const&>(), std::declval<T>()));
+                compare<Packet>(std::declval<Packet const&>(), std::declval<T>()));
 
       // Calculates if two dart types are using the same reference counter
       // implementation, even if the two dart types aren't the same.
@@ -295,7 +295,7 @@ namespace dart {
         // Hands off to the conversion logic for the underlying implementation type.
         template <class Packet, class Wrapper>
         static Packet cast(Wrapper&& wrapper) {
-          return caster_impl<dart_tag>::cast<Packet>(std::forward<Wrapper>(wrapper).val);
+          return caster_impl<dart_tag>::cast<Packet>(std::forward<Wrapper>(wrapper).dynamic());
         }
       };
       template <>
@@ -309,44 +309,44 @@ namespace dart {
       };
 
       template <class T>
-      struct equals_impl;
+      struct compare_impl;
       template <>
-      struct equals_impl<null_tag> {
+      struct compare_impl<null_tag> {
         template <class Packet>
-        static bool equal(Packet const& pkt, std::nullptr_t) {
+        static bool compare(Packet const& pkt, std::nullptr_t) {
           return pkt.is_null();
         }
       };
       template <>
-      struct equals_impl<boolean_tag> {
+      struct compare_impl<boolean_tag> {
         template <class Packet>
-        static bool equal(Packet const& pkt, bool val) {
+        static bool compare(Packet const& pkt, bool val) {
           return pkt.is_boolean() && pkt.boolean() == val;
         }
       };
       template <>
-      struct equals_impl<integer_tag> {
+      struct compare_impl<integer_tag> {
         template <class Packet>
-        static bool equal(Packet const& pkt, int64_t val) {
+        static bool compare(Packet const& pkt, int64_t val) {
           return pkt.is_integer() && pkt.integer() == val;
         }
       };
       template <>
-      struct equals_impl<decimal_tag> {
+      struct compare_impl<decimal_tag> {
         template <class Packet>
-        static bool equal(Packet const& pkt, double val) {
+        static bool compare(Packet const& pkt, double val) {
           return pkt.is_decimal() && pkt.decimal() == val;
         }
       };
       template <>
-      struct equals_impl<string_tag> {
+      struct compare_impl<string_tag> {
         template <class Packet>
-        static bool equal(Packet const& pkt, shim::string_view val) {
+        static bool compare(Packet const& pkt, shim::string_view val) {
           return pkt.is_str() && pkt.strv() == val;
         }
       };
       template <>
-      struct equals_impl<dart_tag> {
+      struct compare_impl<dart_tag> {
         // Handles the case where the packet templates in use
         // are the same, even if the chosen reference counter is not.
         // We can use the built in equality operator in this case.
@@ -358,7 +358,7 @@ namespace dart {
             >::value
           >* = nullptr
         >
-        static bool equal(LhsPacket const& lhs, RhsPacket const& rhs) {
+        static bool compare(LhsPacket const& lhs, RhsPacket const& rhs) {
           return lhs == rhs;
         }
 
@@ -373,7 +373,7 @@ namespace dart {
             >::value
           >* = nullptr
         >
-        static bool equal(LhsPacket const& lhs, RhsPacket const& rhs) {
+        static bool compare(LhsPacket const& lhs, RhsPacket const& rhs) {
           // Lookups are faster on finalized objects, so dispatch such that
           // we attempt to perform lookups against the finalized object.
           if (lhs.is_finalized()) {
@@ -384,17 +384,17 @@ namespace dart {
         }
       };
       template <>
-      struct equals_impl<wrapper_tag> {
+      struct compare_impl<wrapper_tag> {
         template <class Packet, class Wrapper>
-        static bool equal(Packet const& pkt, Wrapper const& wrap) {
-          return equals_impl<dart_tag>::equal(pkt, wrap.val);
+        static bool compare(Packet const& pkt, Wrapper const& wrap) {
+          return compare_impl<dart_tag>::compare(pkt, wrap.dynamic());
         }
       };
       template <>
-      struct equals_impl<user_tag> {
+      struct compare_impl<user_tag> {
         template <class Packet, class T>
-        static bool equal(Packet const& pkt, T const& val) {
-          return to_dart<std::decay_t<T>> {}.template equal(pkt, val);
+        static bool compare(Packet const& pkt, T const& val) {
+          return to_dart<std::decay_t<T>> {}.template compare(pkt, val);
         }
       };
 
@@ -439,8 +439,8 @@ namespace dart {
     }
 
     template <class Packet, class T>
-    bool equal(Packet const& pkt, T const& val) {
-      return detail::equals_impl<detail::normalize_t<T>>::template equal(pkt, val);
+    bool compare(Packet const& pkt, T const& val) {
+      return detail::compare_impl<detail::normalize_t<T>>::template compare(pkt, val);
     }
 
     /**

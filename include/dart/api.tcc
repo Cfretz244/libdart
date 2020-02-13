@@ -326,33 +326,63 @@ namespace dart {
   }
 
   template <class Object>
-  auto basic_object<Object>::dynamic() const noexcept -> value_type const& {
+  auto basic_object<Object>::dynamic() const& noexcept -> value_type const& {
+    return val;
+  }
+
+  template <class Object>
+  auto basic_object<Object>::dynamic() && noexcept -> value_type&& {
+    return std::move(val);
+  }
+
+  template <class Array>
+  auto basic_array<Array>::dynamic() const& noexcept -> value_type const& {
     return val;
   }
 
   template <class Array>
-  auto basic_array<Array>::dynamic() const noexcept -> value_type const& {
+  auto basic_array<Array>::dynamic() && noexcept -> value_type&& {
+    return std::move(val);
+  }
+
+  template <class String>
+  auto basic_string<String>::dynamic() const& noexcept -> value_type const& {
     return val;
   }
 
   template <class String>
-  auto basic_string<String>::dynamic() const noexcept -> value_type const& {
+  auto basic_string<String>::dynamic() && noexcept -> value_type&& {
+    return std::move(val);
+  }
+
+  template <class Number>
+  auto basic_number<Number>::dynamic() const& noexcept -> value_type const& {
     return val;
   }
 
   template <class Number>
-  auto basic_number<Number>::dynamic() const noexcept -> value_type const& {
+  auto basic_number<Number>::dynamic() && noexcept -> value_type&& {
+    return std::move(val);
+  }
+
+  template <class Boolean>
+  auto basic_flag<Boolean>::dynamic() const& noexcept -> value_type const& {
     return val;
   }
 
   template <class Boolean>
-  auto basic_flag<Boolean>::dynamic() const noexcept -> value_type const& {
+  auto basic_flag<Boolean>::dynamic() && noexcept -> value_type&& {
+    return std::move(val);
+  }
+
+  template <class Null>
+  auto basic_null<Null>::dynamic() const& noexcept -> value_type const& {
     return val;
   }
 
   template <class Null>
-  auto basic_null<Null>::dynamic() const noexcept -> value_type const& {
-    return val;
+  auto basic_null<Null>::dynamic() && noexcept -> value_type&& {
+    return std::move(val);
   }
 
   template <class Object>
