@@ -39,6 +39,72 @@ namespace dart {
       struct dart_tag {};
       struct user_tag {};
 
+      template <class PacketType>
+      struct typed_compare;
+      template <template <class> class RefCount>
+      struct typed_compare<basic_heap<RefCount>> {
+        template <class OtherHeap>
+        static bool compare(basic_heap<RefCount> const& lhs, OtherHeap const& rhs) {
+          // Check if we're comparing against ourselves.
+          // Cast is necessary to ensure validity if we're comparing
+          // against a different refcounter.
+          if (static_cast<void const*>(&lhs) == static_cast<void const*>(&rhs)) return true;
+
+          // Check if we're even the same type.
+          if (lhs.is_null() && rhs.is_null()) return true;
+          else if (lhs.get_type() != rhs.get_type()) return false;
+
+          // Defer to our underlying representation.
+          return shim::visit([] (auto& lhs, auto& rhs) {
+            using Lhs = std::decay_t<decltype(lhs)>;
+            using Rhs = std::decay_t<decltype(rhs)>;
+
+            // Have to compare through pointers here, and we make the decision purely off of the
+            // ability to dereference the incoming type to try to allow compatibility with custom
+            // external smart-pointers that otherwise conform to the std::shared_ptr interface.
+            auto comparator = dart::detail::typeless_comparator {};
+            auto& lval = dart::detail::maybe_dereference(lhs, meta::is_dereferenceable<Lhs> {});
+            auto& rval = dart::detail::maybe_dereference(rhs, meta::is_dereferenceable<Rhs> {});
+            return comparator(lval, rval);
+          }, lhs.data, rhs.data);
+        }
+      };
+      template <template <class> class RefCount>
+      struct typed_compare<basic_buffer<RefCount>> {
+        template <class OtherBuffer>
+        static bool compare(basic_buffer<RefCount> const& lhs, OtherBuffer const& rhs) {
+          // Check if we're comparing against ourselves.
+          // Cast is necessary to ensure validity if we're comparing
+          // against a different refcounter.
+          if (static_cast<void const*>(&lhs) == static_cast<void const*>(&rhs)) return true;
+
+          // Check if we're sure we're even the same type.
+          if (lhs.is_null() && rhs.is_null()) return true;
+          else if (lhs.get_type() != rhs.get_type()) return false;
+          else if (lhs.raw.buffer == rhs.raw.buffer) return true;
+
+          // Fall back on a comparison of the underlying buffers.
+          auto lhs_size = dart::detail::find_sizeof<RefCount>(lhs);
+          auto rhs_size = dart::detail::find_sizeof<RefCount>(rhs);
+          if (lhs_size == rhs_size) {
+            return std::equal(lhs.buffer, lhs.buffer + lhs_size, rhs.buffer);
+          } else {
+            return false;
+          }
+        }
+      };
+      template <template <class> class RefCount>
+      struct typed_compare<basic_packet<RefCount>> {
+        template <class OtherPacket>
+        static bool compare(basic_packet<RefCount> const& lhs, OtherPacket const& rhs) {
+          // Check if we're comparing against ourselves.
+          // Cast is necessary to ensure validity if we're comparing
+          // against a different refcounter.
+          if (static_cast<void const*>(&lhs) == static_cast<void const*>(&rhs)) return true;
+          return shim::visit([] (auto& lhs, auto& rhs) { return lhs == rhs; }, lhs.impl, rhs.impl);
+        }
+      };
+
       template <class Lhs, class Rhs>
       bool generic_compare(Lhs const& lhs, Rhs const& rhs) {
         // Make sure they're at least of the same type.
@@ -359,7 +425,7 @@ namespace dart {
           >* = nullptr
         >
         static bool compare(LhsPacket const& lhs, RhsPacket const& rhs) {
-          return lhs == rhs;
+          return typed_compare<typename LhsPacket::value_type>::compare(lhs, rhs);
         }
 
         // Handles the case where the packet templates in use
@@ -397,6 +463,36 @@ namespace dart {
           return to_dart<std::decay_t<T>> {}.template compare(pkt, val);
         }
       };
+
+      template <class Lhs, class Rhs>
+      bool compare_dispatch(dart_tag, dart_tag, Lhs const& lhs, Rhs const& rhs) {
+        return detail::compare_impl<dart_tag>::template compare(lhs, rhs);
+      }
+
+      template <class Lhs, class Rhs>
+      bool compare_dispatch(wrapper_tag, wrapper_tag, Lhs const& lhs, Rhs const& rhs) {
+        return detail::compare_impl<wrapper_tag>::template compare(lhs.dynamic(), rhs);
+      }
+
+      template <class Free, class Lhs, class Rhs>
+      bool compare_dispatch(dart_tag, Free, Lhs const& lhs, Rhs const& rhs) {
+        return detail::compare_impl<Free>::template compare(lhs, rhs);
+      }
+
+      template <class Free, class Lhs, class Rhs>
+      bool compare_dispatch(wrapper_tag, Free, Lhs const& lhs, Rhs const& rhs) {
+        return detail::compare_impl<Free>::template compare(lhs.dynamic(), rhs);
+      }
+
+      template <class Free, class Lhs, class Rhs>
+      bool compare_dispatch(Free, dart_tag, Lhs const& lhs, Rhs const& rhs) {
+        return detail::compare_impl<Free>::template compare(rhs, lhs);
+      }
+
+      template <class Free, class Lhs, class Rhs>
+      bool compare_dispatch(Free, wrapper_tag, Lhs const& lhs, Rhs const& rhs) {
+        return detail::compare_impl<Free>::template compare(rhs.dynamic(), lhs);
+      }
 
     }
 
@@ -438,9 +534,9 @@ namespace dart {
       return detail::caster_impl<detail::normalize_t<T>>::template cast<Packet>(std::forward<T>(val));
     }
 
-    template <class Packet, class T>
-    bool compare(Packet const& pkt, T const& val) {
-      return detail::compare_impl<detail::normalize_t<T>>::template compare(pkt, val);
+    template <class Lhs, class Rhs>
+    bool compare(Lhs const& lhs, Rhs const& rhs) {
+      return detail::compare_dispatch(detail::normalize_t<Lhs> {}, detail::normalize_t<Rhs> {}, lhs, rhs);
     }
 
     /**
@@ -536,7 +632,7 @@ namespace dart {
           // We can do it if the user has specialized the user
           // equality struct.
           meta::is_detected<
-            detail::user_equal_t,
+            detail::user_compare_t,
             Packet,
             T
           >

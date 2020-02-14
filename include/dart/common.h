@@ -1153,16 +1153,6 @@ namespace dart {
     }
 
     template <template <class> class RefCount>
-    bool buffer_equal(raw_element lhs, raw_element rhs) {
-      auto lhs_size = find_sizeof<RefCount>(lhs), rhs_size = find_sizeof<RefCount>(rhs);
-      if (lhs_size == rhs_size) {
-        return std::equal(lhs.buffer, lhs.buffer + lhs_size, rhs.buffer);
-      } else {
-        return false;
-      }
-    }
-
-    template <template <class> class RefCount>
     constexpr size_t sso_bytes() {
       return basic_heap<RefCount>::sso_bytes;
     }

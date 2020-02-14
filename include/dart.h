@@ -7062,6 +7062,9 @@ namespace dart {
       friend size_t detail::sso_bytes<RefCount>();
       friend class detail::object<RefCount>;
       friend class detail::array<RefCount>;
+
+      template <class PacketType>
+      friend struct convert::detail::typed_compare;
       
       template <template <class> class RC>
       friend class basic_heap;
@@ -7573,38 +7576,6 @@ namespace dart {
         >
       >
       basic_buffer&& operator [](KeyType const& identifier) &&;
-
-      /**
-       *  @brief
-       *  Equality operator.
-       *  
-       *  @details
-       *  All packet types always return deep equality (aggregates included).
-       *  For finalized packets like dart::buffer, this is implemented as memcmp
-       *  of the underlying buffer, and is _stupdendously_ fast (think gigabytes
-       *  per/second).
-       *  
-       *  @remarks
-       *  "Do as vector does"
-       */
-      template <template <class> class OtherRC>
-      bool operator ==(basic_buffer<OtherRC> const& other) const noexcept;
-
-      /**
-       *  @brief
-       *  Inequality operator.
-       *  
-       *  @details
-       *  All packet types always return deep equality (aggregates included).
-       *  For finalized packets like dart::buffer, this is implemented as memcmp
-       *  of the underlying buffer, and is _stupdendously_ fast (think gigabytes
-       *  per/second).
-       *  
-       *  @remarks
-       *  "Do as vector does"
-       */
-      template <template <class> class OtherRC>
-      bool operator !=(basic_buffer<OtherRC> const& other) const noexcept;
 
       /**
        *  @brief
@@ -9399,6 +9370,8 @@ namespace dart {
       friend class basic_buffer;
       template <template <class> class RC>
       friend class basic_packet;
+      template <class PacketType>
+      friend struct convert::detail::typed_compare;
       friend struct detail::buffer_builder<RefCount>;
 
   };
@@ -9936,80 +9909,6 @@ namespace dart {
         >
       >
       basic_packet&& operator [](KeyType const& identifier) &&;
-
-      /**
-       *  @brief
-       *  Equality operator.
-       *  
-       *  @details
-       *  All packet types always return deep equality (aggregates included).
-       *  While idiomatic for C++, this means that non-finalized object comparisons
-       *  can be reasonably expensive.
-       *  Finalized comparisons, however, use memcmp to compare the underlying
-       *  byte buffers, and is _stupendously_ fast.
-       *  
-       *  @remarks
-       *  "Do as vector does"
-       *  Operator == is overloaded to ensure comparability with the rest of
-       *  the dart types.
-       *  We want comparability across refcounters, but conversions aren't
-       *  considered for template parameters.
-       */
-      bool operator ==(basic_packet const& other) const noexcept;
-
-      /**
-       *  @brief
-       *  Equality operator.
-       *  
-       *  @details
-       *  All packet types always return deep equality (aggregates included).
-       *  While idiomatic for C++, this means that non-finalized object comparisons
-       *  can be reasonably expensive.
-       *  Finalized comparisons, however, use memcmp to compare the underlying
-       *  byte buffers, and is _stupendously_ fast.
-       *  
-       *  @remarks
-       *  "Do as vector does"
-       */
-      template <template <class> class OtherRC>
-      bool operator ==(basic_packet<OtherRC> const& other) const noexcept;
-
-      /**
-       *  @brief
-       *  Equality operator.
-       *  
-       *  @details
-       *  All packet types always return deep equality (aggregates included).
-       *  While idiomatic for C++, this means that non-finalized object comparisons
-       *  can be reasonably expensive.
-       *  Finalized comparisons, however, use memcmp to compare the underlying
-       *  byte buffers, and is _stupendously_ fast.
-       *  
-       *  @remarks
-       *  "Do as vector does"
-       *  Operator == is overloaded to ensure comparability with the rest of
-       *  the dart types.
-       *  We want comparability across refcounters, but conversions aren't
-       *  considered for template parameters.
-       */
-      bool operator !=(basic_packet const& other) const noexcept;
-
-      /**
-       *  @brief
-       *  Inequality operator.
-       *  
-       *  @details
-       *  All packet types always return deep equality (aggregates included).
-       *  While idiomatic C++, this means that non-finalized object/array comparisons
-       *  can be arbitrarily expensive.
-       *  Finalized comparisons, however, use memcmp to compare the underlying
-       *  byte buffers, and are _stupendously_ fast.
-       *  
-       *  @remarks
-       *  "Do as vector does"
-       */
-      template <template <class> class OtherRC>
-      bool operator !=(basic_packet<OtherRC> const& other) const noexcept;
 
       /**
        *  @brief
@@ -12671,6 +12570,9 @@ namespace dart {
       template <template <class> class RC>
       friend class dart::basic_packet;
       friend class detail::object<RefCount>;
+
+      template <class PacketType>
+      friend struct convert::detail::typed_compare;
       friend struct detail::buffer_builder<RefCount>;
 
   };

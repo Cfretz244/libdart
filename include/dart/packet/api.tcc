@@ -22,32 +22,6 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
-  bool basic_packet<RefCount>::operator ==(basic_packet const& other) const noexcept {
-    return this->operator ==<RefCount>(other);
-  }
-
-  template <template <class> class RefCount>
-  template <template <class> class OtherRC>
-  bool basic_packet<RefCount>::operator ==(basic_packet<OtherRC> const& other) const noexcept {
-    // Check if we're comparing against ourselves.
-    // Cast is necessary to ensure validity if we're comparing
-    // against a different refcounter.
-    if (static_cast<void const*>(this) == static_cast<void const*>(&other)) return true;
-    return shim::visit([] (auto& lhs, auto& rhs) { return lhs == rhs; }, impl, other.impl);
-  }
-
-  template <template <class> class RefCount>
-  bool basic_packet<RefCount>::operator !=(basic_packet const& other) const noexcept {
-    return this->operator !=<RefCount>(other);
-  }
-
-  template <template <class> class RefCount>
-  template <template <class> class OtherRC>
-  bool basic_packet<RefCount>::operator !=(basic_packet<OtherRC> const& other) const noexcept {
-    return !(*this == other);
-  }
-
-  template <template <class> class RefCount>
   auto basic_packet<RefCount>::operator ->() noexcept -> basic_packet* {
     return this;
   }
