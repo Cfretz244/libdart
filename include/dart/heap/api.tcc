@@ -26,6 +26,13 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
+  template <class T, class EnableIf>
+  basic_heap<RefCount>& basic_heap<RefCount>::operator =(T&& other) & {
+    *this = convert::cast<basic_heap>(std::forward<T>(other));
+    return *this;
+  }
+
+  template <template <class> class RefCount>
   template <class KeyType, class EnableIf>
   basic_heap<RefCount> basic_heap<RefCount>::operator [](KeyType const& identifier) const {
     return get(identifier);

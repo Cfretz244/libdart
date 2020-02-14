@@ -13,17 +13,100 @@
 
 namespace dart {
 
-  template <template <class> class RefCount>
-  template <class T, class EnableIf>
-  basic_heap<RefCount>& basic_heap<RefCount>::operator =(T&& other) & {
-    *this = convert::cast<basic_heap>(std::forward<T>(other));
+  template <class Object>
+  template <class Key, class Value, class Comp, class Alloc, class EnableIf>
+  basic_object<Object>& basic_object<Object>::operator =(std::map<Key, Value, Comp, Alloc> const& map) & {
+    val = convert::cast<value_type>(map);
     return *this;
   }
 
-  template <template <class> class RefCount>
-  template <class T, class EnableIf>
-  basic_packet<RefCount>& basic_packet<RefCount>::operator =(T&& other) & {
-    get_heap() = std::forward<T>(other);
+  template <class Object>
+  template <class Key, class Value, class Comp, class Alloc, class EnableIf>
+  basic_object<Object>& basic_object<Object>::operator =(std::map<Key, Value, Comp, Alloc>&& map) & {
+    val = convert::cast<value_type>(std::move(map));
+    return *this;
+  }
+
+  template <class Object>
+  template <class Key, class Value, class Hash, class Equal, class Alloc, class EnableIf>
+  basic_object<Object>& basic_object<Object>::operator =(std::unordered_map<Key, Value, Hash, Equal, Alloc> const& map) & {
+    val = convert::cast<value_type>(map);
+    return *this;
+  }
+
+  template <class Object>
+  template <class Key, class Value, class Hash, class Equal, class Alloc, class EnableIf>
+  basic_object<Object>& basic_object<Object>::operator =(std::unordered_map<Key, Value, Hash, Equal, Alloc>&& map) & {
+    val = convert::cast<value_type>(std::move(map));
+    return *this;
+  }
+
+  template <class Array>
+  template <class T, class Alloc, class EnableIf>
+  basic_array<Array>& basic_array<Array>::operator =(std::vector<T, Alloc> const& vec) & {
+    val = convert::cast<value_type>(vec);
+    return *this;
+  }
+
+  template <class Array>
+  template <class T, class Alloc, class EnableIf>
+  basic_array<Array>& basic_array<Array>::operator =(std::vector<T, Alloc>&& vec) & {
+    val = convert::cast<value_type>(std::move(vec));
+    return *this;
+  }
+
+  template <class Array>
+  template <class T, size_t len, class EnableIf>
+  basic_array<Array>& basic_array<Array>::operator =(std::array<T, len> const& arr) & {
+    val = convert::cast<value_type>(arr);
+    return *this;
+  }
+
+  template <class Array>
+  template <class T, size_t len, class EnableIf>
+  basic_array<Array>& basic_array<Array>::operator =(std::array<T, len>&& arr) & {
+    val = convert::cast<value_type>(std::move(arr));
+    return *this;
+  }
+
+  template <class String>
+  basic_string<String>& basic_string<String>::operator =(shim::string_view str) & {
+    val = convert::cast<value_type>(str);
+    return *this;
+  }
+
+  template <class Number>
+  template <class Integer,
+    std::enable_if_t<
+      std::is_integral<Integer>::value
+      &&
+      !std::is_same<Integer, bool>::value
+    >*
+  >
+  basic_number<Number>& basic_number<Number>::operator =(Integer val) & {
+    this->val = convert::cast<value_type>(val);
+    return *this;
+  }
+
+  template <class Number>
+  template <class Decimal,
+    std::enable_if_t<
+      std::is_floating_point<Decimal>::value
+    >*
+  >
+  basic_number<Number>& basic_number<Number>::operator =(Decimal val) & {
+    this->val = convert::cast<value_type>(val);
+    return *this;
+  }
+
+  template <class Boolean>
+  basic_flag<Boolean>& basic_flag<Boolean>::operator =(bool val) & {
+    this->val = convert::cast<value_type>(val);
+    return *this;
+  }
+
+  template <class Null>
+  basic_null<Null>& basic_null<Null>::operator =(std::nullptr_t) & {
     return *this;
   }
 

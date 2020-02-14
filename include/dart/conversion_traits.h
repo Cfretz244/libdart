@@ -39,6 +39,9 @@ namespace dart {
       struct dart_tag {};
       struct user_tag {};
 
+      // Struct is basically a switch table of different Dart comparison operations
+      // where both lhs and rhs are known to be specializations of the same Dart
+      // template, even if instantiated with different reference counters.
       template <class PacketType>
       struct typed_compare;
       template <template <class> class RefCount>
@@ -106,6 +109,8 @@ namespace dart {
         }
       };
 
+      // Function implements the fallback case where we've been asked to compare two
+      // Dart types which have been instantiated off of different base templates.
       template <class Lhs, class Rhs>
       bool generic_compare(Lhs const& lhs, Rhs const& rhs) {
         // Make sure they're at least of the same type.
@@ -375,6 +380,7 @@ namespace dart {
         }
       };
 
+      // Switch table implementation for Dart comparisons
       template <class T>
       struct compare_impl;
       template <>
@@ -416,7 +422,10 @@ namespace dart {
       struct compare_impl<dart_tag> {
         // Handles the case where the packet templates in use
         // are the same, even if the chosen reference counter is not.
-        // We can use the built in equality operator in this case.
+        // Since both lhs and rhs are based off of the same template class,
+        // we can use internal implementation details to perform comparison
+        // faster.
+        // MUCH faster in the case of dart::basic_buffer.
         template <class LhsPacket, class RhsPacket,
           std::enable_if_t<
             same_packet<
@@ -431,7 +440,8 @@ namespace dart {
 
         // Handles the case where the packet templates in use
         // are NOT the same, regardless of the chosen reference counter.
-        // This isn't defined, so we need to implement it ourselves.
+        // Since lhs and rhs are NOT based off of the same template class,
+        // we use the public API to avoid going insane
         template <class LhsPacket, class RhsPacket,
           std::enable_if_t<
             !same_packet<
@@ -465,7 +475,7 @@ namespace dart {
         }
       };
 
-      // These overloads have to exist to avoid ambiguity.
+      // These overloads have to exist to avoid overload ambiguity.
       // Argument order is not enormously significant.
       // Performs all calls in terms of dart_tag as wrapper_tag just defers to dart_tag.
       template <class Lhs, class Rhs>

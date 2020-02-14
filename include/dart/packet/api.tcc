@@ -10,6 +10,13 @@
 namespace dart {
 
   template <template <class> class RefCount>
+  template <class T, class EnableIf>
+  basic_packet<RefCount>& basic_packet<RefCount>::operator =(T&& other) & {
+    get_heap() = std::forward<T>(other);
+    return *this;
+  }
+
+  template <template <class> class RefCount>
   template <class KeyType, class EnableIf>
   basic_packet<RefCount> basic_packet<RefCount>::operator [](KeyType const& identifier) const& {
     return get(identifier);

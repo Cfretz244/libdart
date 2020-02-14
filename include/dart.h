@@ -389,6 +389,58 @@ namespace dart {
 
       /**
        *  @brief
+       *  Converting copy-assignment operator from std::map.
+       */
+      template <class Key, class Value, class Comp, class Alloc, class EnableIf =
+        std::enable_if_t<
+          convert::is_castable<Key, value_type>::value
+          &&
+          convert::is_castable<Value, value_type>::value
+        >
+      >
+      basic_object& operator =(std::map<Key, Value, Comp, Alloc> const& map) &;
+
+      /**
+       *  @brief
+       *  Converting move-assignment operator from std::map.
+       */
+      template <class Key, class Value, class Comp, class Alloc, class EnableIf =
+        std::enable_if_t<
+          convert::is_castable<Key, value_type>::value
+          &&
+          convert::is_castable<Value, value_type>::value
+        >
+      >
+      basic_object& operator =(std::map<Key, Value, Comp, Alloc>&& map) &;
+
+      /**
+       *  @brief
+       *  Converting copy-assignment operator from std::unordered_map.
+       */
+      template <class Key, class Value, class Hash, class Equal, class Alloc, class EnableIf =
+        std::enable_if_t<
+          convert::is_castable<Key, value_type>::value
+          &&
+          convert::is_castable<Value, value_type>::value
+        >
+      >
+      basic_object& operator =(std::unordered_map<Key, Value, Hash, Equal, Alloc> const& map) &;
+
+      /**
+       *  @brief
+       *  Converting move-assignment operator from std::unordered_map.
+       */
+      template <class Key, class Value, class Hash, class Equal, class Alloc, class EnableIf =
+        std::enable_if_t<
+          convert::is_castable<Key, value_type>::value
+          &&
+          convert::is_castable<Value, value_type>::value
+        >
+      >
+      basic_object& operator =(std::unordered_map<Key, Value, Hash, Equal, Alloc>&& map) &;
+
+      /**
+       *  @brief
        *  Object subscript operator.
        *
        *  @details
@@ -1688,6 +1740,50 @@ namespace dart {
 
       /**
        *  @brief
+       *  Converting copy-assignment operator from std::vector
+       */
+      template <class T, class Alloc, class EnableIf =
+        std::enable_if_t<
+          convert::is_castable<T, value_type>::value
+        >
+      >
+      basic_array& operator =(std::vector<T, Alloc> const& vec) &;
+
+      /**
+       *  @brief
+       *  Converting move-assignment operator from std::vector
+       */
+      template <class T, class Alloc, class EnableIf =
+        std::enable_if_t<
+          convert::is_castable<T, value_type>::value
+        >
+      >
+      basic_array& operator =(std::vector<T, Alloc>&& vec) &;
+
+      /**
+       *  @brief
+       *  Converting copy-assignment operator from std::array
+       */
+      template <class T, size_t len, class EnableIf =
+        std::enable_if_t<
+          convert::is_castable<T, value_type>::value
+        >
+      >
+      basic_array& operator =(std::array<T, len> const& vec) &;
+
+      /**
+       *  @brief
+       *  Converting move-assignment operator from std::array
+       */
+      template <class T, size_t len, class EnableIf =
+        std::enable_if_t<
+          convert::is_castable<T, value_type>::value
+        >
+      >
+      basic_array& operator =(std::array<T, len>&& vec) &;
+
+      /**
+       *  @brief
        *  Array subscript operator.
        *
        *  @details
@@ -2604,7 +2700,7 @@ namespace dart {
    *  constraints/preconditions where applicable.
    */
   template <class String>
-  class basic_string {
+  class basic_string final {
 
     template <class Str, class... Args>
     using make_string_t = decltype(Str::make_string(std::declval<Args>()...));
@@ -2798,6 +2894,12 @@ namespace dart {
 #if !DART_USING_MSVC
       basic_string& operator =(basic_string&&) && = delete;
 #endif
+
+      /**
+       *  @brief
+       *  Converting copy-assignment operator from shim::string_view
+       */
+      basic_string& operator =(shim::string_view str) &;
 
       /**
        *  @brief
@@ -3046,7 +3148,7 @@ namespace dart {
    *  constraints/preconditions where applicable.
    */
   template <class Number>
-  class basic_number {
+  class basic_number final {
     
     template <class Num, class... Args>
     using make_integer_t = decltype(Num::make_integer(std::declval<Args>()...));
@@ -3256,6 +3358,30 @@ namespace dart {
 #if !DART_USING_MSVC
       basic_number& operator =(basic_number&&) && = delete;
 #endif
+
+      /**
+       *  @brief
+       *  Converting copy-assigment operator from int64_t.
+       */
+      template <class Integer,
+        std::enable_if_t<
+          std::is_integral<Integer>::value
+          &&
+          !std::is_same<Integer, bool>::value
+        >* = nullptr
+      >
+      basic_number& operator =(Integer val) &;
+
+      /**
+       *  @brief
+       *  Converting copy-assigment operator from double.
+       */
+      template <class Decimal,
+        std::enable_if_t<
+          std::is_floating_point<Decimal>::value
+        >* = nullptr
+      >
+      basic_number& operator =(Decimal val) &;
 
       /**
        *  @brief
@@ -3495,7 +3621,7 @@ namespace dart {
    *  constraints/preconditions where applicable.
    */
   template <class Boolean>
-  class basic_flag {
+  class basic_flag final {
 
     template <class Bool, class... Args>
     using make_boolean_t = decltype(Bool::make_boolean(std::declval<Args>()...));
@@ -3689,6 +3815,12 @@ namespace dart {
 #if !DART_USING_MSVC
       basic_flag& operator =(basic_flag&&) && = delete;
 #endif
+
+      /**
+       *  @brief
+       *  Converting copy-assignment operator from bool.
+       */
+      basic_flag& operator =(bool val) &;
 
       /**
        *  @brief
@@ -3904,7 +4036,7 @@ namespace dart {
    *  doubt it will ever be of significant use.
    */
   template <class Null>
-  class basic_null {
+  class basic_null final {
 
     public:
 
@@ -4055,6 +4187,15 @@ namespace dart {
 #if !DART_USING_MSVC
       basic_null& operator =(basic_null&&) && = delete;
 #endif
+
+      /**
+       *  @brief
+       *  Converting copy-assignment operator from std::nullptr_t.
+       *
+       *  @details
+       *  Function is a no-op and exists for API uniformity.
+       */
+      basic_null& operator =(std::nullptr_t) &;
 
       /**
        *  @brief
@@ -12364,6 +12505,7 @@ namespace dart {
   using string = packet::string;
   using number = packet::number;
   using flag = packet::flag;
+  using null = packet::null;
 
   // Make sure everything has noexcept moves as expected to avoid unnecessary bottlenecks.
   static_assert(std::is_nothrow_move_constructible<heap>::value
