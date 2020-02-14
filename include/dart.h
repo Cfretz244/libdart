@@ -444,40 +444,6 @@ namespace dart {
 
       /**
        *  @brief
-       *  Equality operator.
-       *  
-       *  @details
-       *  All packet types always return deep equality (aggregates included).
-       *  While idiomatic for C++, this means that non-finalized object comparisons
-       *  can be reasonably expensive.
-       *  Finalized comparisons, however, use memcmp to compare the underlying
-       *  byte buffers, and is _stupendously_ fast.
-       *  
-       *  @remarks
-       *  "Do as vector does"
-       */
-      template <class OtherObject>
-      bool operator ==(basic_object<OtherObject> const& other) const noexcept;
-
-      /**
-       *  @brief
-       *  Inequality operator.
-       *  
-       *  @details
-       *  All packet types always return deep equality (aggregates included).
-       *  While idiomatic C++, this means that non-finalized object/array comparisons
-       *  can be arbitrarily expensive.
-       *  Finalized comparisons, however, use memcmp to compare the underlying
-       *  byte buffers, and are _stupendously_ fast.
-       *  
-       *  @remarks
-       *  "Do as vector does"
-       */
-      template <class OtherObject>
-      bool operator !=(basic_object<OtherObject> const& other) const noexcept;
-
-      /**
-       *  @brief
        *  Implicit conversion operator to underlying implementation type.
        *
        *  @details
@@ -1786,40 +1752,6 @@ namespace dart {
 
       /**
        *  @brief
-       *  Equality operator.
-       *  
-       *  @details
-       *  All packet types always return deep equality (aggregates included).
-       *  While idiomatic for C++, this means that non-finalized object comparisons
-       *  can be reasonably expensive.
-       *  Finalized comparisons, however, use memcmp to compare the underlying
-       *  byte buffers, and is _stupendously_ fast.
-       *  
-       *  @remarks
-       *  "Do as vector does"
-       */
-      template <class OtherArray>
-      bool operator ==(basic_array<OtherArray> const& other) const noexcept;
-
-      /**
-       *  @brief
-       *  Inequality operator.
-       *  
-       *  @details
-       *  All packet types always return deep equality (aggregates included).
-       *  While idiomatic C++, this means that non-finalized object/array comparisons
-       *  can be arbitrarily expensive.
-       *  Finalized comparisons, however, use memcmp to compare the underlying
-       *  byte buffers, and are _stupendously_ fast.
-       *  
-       *  @remarks
-       *  "Do as vector does"
-       */
-      template <class OtherArray>
-      bool operator !=(basic_array<OtherArray> const& other) const noexcept;
-
-      /**
-       *  @brief
        *  Implicit conversion operator to underlying implementation type.
        *
        *  @details
@@ -2869,40 +2801,6 @@ namespace dart {
 
       /**
        *  @brief
-       *  Equality operator.
-       *  
-       *  @details
-       *  All packet types always return deep equality (aggregates included).
-       *  While idiomatic for C++, this means that non-finalized object comparisons
-       *  can be reasonably expensive.
-       *  Finalized comparisons, however, use memcmp to compare the underlying
-       *  byte buffers, and is _stupendously_ fast.
-       *  
-       *  @remarks
-       *  "Do as vector does"
-       */
-      template <class OtherString>
-      bool operator ==(basic_string<OtherString> const& other) const noexcept;
-
-      /**
-       *  @brief
-       *  Inequality operator.
-       *  
-       *  @details
-       *  All packet types always return deep equality (aggregates included).
-       *  While idiomatic C++, this means that non-finalized object/array comparisons
-       *  can be arbitrarily expensive.
-       *  Finalized comparisons, however, use memcmp to compare the underlying
-       *  byte buffers, and are _stupendously_ fast.
-       *  
-       *  @remarks
-       *  "Do as vector does"
-       */
-      template <class OtherString>
-      bool operator !=(basic_string<OtherString> const& other) const noexcept;
-
-      /**
-       *  @brief
        *  Dereference operator.
        *
        *  @details
@@ -3361,40 +3259,6 @@ namespace dart {
 
       /**
        *  @brief
-       *  Equality operator.
-       *  
-       *  @details
-       *  All packet types always return deep equality (aggregates included).
-       *  While idiomatic for C++, this means that non-finalized object comparisons
-       *  can be reasonably expensive.
-       *  Finalized comparisons, however, use memcmp to compare the underlying
-       *  byte buffers, and is _stupendously_ fast.
-       *  
-       *  @remarks
-       *  "Do as vector does"
-       */
-      template <class OtherNumber>
-      bool operator ==(basic_number<OtherNumber> const& other) const noexcept;
-
-      /**
-       *  @brief
-       *  Inequality operator.
-       *  
-       *  @details
-       *  All packet types always return deep equality (aggregates included).
-       *  While idiomatic C++, this means that non-finalized object/array comparisons
-       *  can be arbitrarily expensive.
-       *  Finalized comparisons, however, use memcmp to compare the underlying
-       *  byte buffers, and are _stupendously_ fast.
-       *  
-       *  @remarks
-       *  "Do as vector does"
-       */
-      template <class OtherNumber>
-      bool operator !=(basic_number<OtherNumber> const& other) const noexcept;
-
-      /**
-       *  @brief
        *  Dereference operator.
        *
        *  @details
@@ -3828,40 +3692,6 @@ namespace dart {
 
       /**
        *  @brief
-       *  Equality operator.
-       *  
-       *  @details
-       *  All packet types always return deep equality (aggregates included).
-       *  While idiomatic for C++, this means that non-finalized object comparisons
-       *  can be reasonably expensive.
-       *  Finalized comparisons, however, use memcmp to compare the underlying
-       *  byte buffers, and is _stupendously_ fast.
-       *  
-       *  @remarks
-       *  "Do as vector does"
-       */
-      template <class OtherBoolean>
-      bool operator ==(basic_flag<OtherBoolean> const& other) const noexcept;
-
-      /**
-       *  @brief
-       *  Inequality operator.
-       *  
-       *  @details
-       *  All packet types always return deep equality (aggregates included).
-       *  While idiomatic C++, this means that non-finalized object/array comparisons
-       *  can be arbitrarily expensive.
-       *  Finalized comparisons, however, use memcmp to compare the underlying
-       *  byte buffers, and are _stupendously_ fast.
-       *  
-       *  @remarks
-       *  "Do as vector does"
-       */
-      template <class OtherBoolean>
-      bool operator !=(basic_flag<OtherBoolean> const& other) const noexcept;
-
-      /**
-       *  @brief
        *  Dereference operator.
        *
        *  @details
@@ -4225,28 +4055,6 @@ namespace dart {
 #if !DART_USING_MSVC
       basic_null& operator =(basic_null&&) && = delete;
 #endif
-
-      /**
-       *  @brief
-       *  Equality operator.
-       *  
-       *  @details
-       *  For strongly typed null packets, always returns true as all
-       *  null instances are considered equal to each other.
-       */
-      template <class OtherNull>
-      constexpr bool operator ==(basic_null<OtherNull> const& other) const noexcept;
-
-      /**
-       *  @brief
-       *  Equality operator.
-       *  
-       *  @details
-       *  For strongly typed null packets, always returns true as all
-       *  null instances are considered equal to each other.
-       */
-      template <class OtherNull>
-      constexpr bool operator !=(basic_null<OtherNull> const& other) const noexcept;
 
       /**
        *  @brief
@@ -4701,36 +4509,6 @@ namespace dart {
         >
       >
       basic_heap operator [](KeyType const& identifier) const;
-
-      /**
-       *  @brief
-       *  Equality operator.
-       *  
-       *  @details
-       *  All packet types always return deep equality (aggregates included).
-       *  While idiomatic for C++, this means that non-finalized object comparisons
-       *  can be reasonably expensive.
-       *  
-       *  @remarks
-       *  "Do as vector does"
-       */
-      template <template <class> class OtherRC>
-      bool operator ==(basic_heap<OtherRC> const& other) const noexcept;
-
-      /**
-       *  @brief
-       *  Inequality operator.
-       *  
-       *  @details
-       *  All packet types always return deep equality (aggregates included).
-       *  While idiomatic C++, this means that non-finalized object/array comparisons
-       *  can be arbitrarily expensive.
-       *  
-       *  @remarks
-       *  "Do as vector does"
-       */
-      template <template <class> class OtherRC>
-      bool operator !=(basic_heap<OtherRC> const& other) const noexcept;
 
       /**
        *  @brief

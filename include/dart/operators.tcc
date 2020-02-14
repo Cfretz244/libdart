@@ -8,123 +8,68 @@
 
 /*----- Function Definitions -----*/
 
-// I apologize for this whole file.
-// I'm not usually a macro kind of guy, but this is one of those rare
-// situations where the code would actually be WORSE without the macros.
-// It doesn't help that the Dart API surface is so large
 namespace dart {
 
-#define DART_DEFINE_EQUALITY_OPERATORS(dart_temp)                                                               \
-  template <class T, template <class> class RC, class =                                                         \
-    std::enable_if_t<                                                                                           \
-      convert::is_comparable<T, dart_temp<RC>>::value                                                           \
-    >                                                                                                           \
-  >                                                                                                             \
-  bool operator ==(dart_temp<RC> const& lhs, T const& rhs) {                                                    \
-    return convert::compare(lhs, rhs);                                                                          \
-  }                                                                                                             \
-  template <class T, template <class> class RC, class =                                                         \
-    std::enable_if_t<                                                                                           \
-      convert::is_comparable<T, dart_temp<RC>>::value                                                           \
-    >                                                                                                           \
-  >                                                                                                             \
-  bool operator ==(T const& lhs, dart_temp<RC> const& rhs) {                                                    \
-    return convert::compare(rhs, lhs);                                                                          \
-  }                                                                                                             \
-  template <class T, template <class> class RC, class =                                                         \
-    std::enable_if_t<                                                                                           \
-      convert::is_comparable<T, dart_temp<RC>>::value                                                           \
-    >                                                                                                           \
-  >                                                                                                             \
-  bool operator !=(dart_temp<RC> const& lhs, T const& rhs) {                                                    \
-    return !(lhs == rhs);                                                                                       \
-  }                                                                                                             \
-  template <class T, template <class> class RC, class =                                                         \
-    std::enable_if_t<                                                                                           \
-      convert::is_comparable<T, dart_temp<RC>>::value                                                           \
-    >                                                                                                           \
-  >                                                                                                             \
-  bool operator !=(T const& lhs, dart_temp<RC> const& rhs) {                                                    \
-    return !(lhs == rhs);                                                                                       \
+  namespace detail {
+    template <class T>
+    struct is_dart_api_type : std::false_type {};
+    template <template <class> class RC>
+    struct is_dart_api_type<dart::basic_heap<RC>> : std::true_type {};
+    template <template <class> class RC>
+    struct is_dart_api_type<dart::basic_buffer<RC>> : std::true_type {};
+    template <template <class> class RC>
+    struct is_dart_api_type<dart::basic_packet<RC>> : std::true_type {};
+    template <class T>
+    struct is_dart_api_type<dart::basic_object<T>> : std::true_type {};
+    template <class T>
+    struct is_dart_api_type<dart::basic_array<T>> : std::true_type {};
+    template <class T>
+    struct is_dart_api_type<dart::basic_string<T>> : std::true_type {};
+    template <class T>
+    struct is_dart_api_type<dart::basic_number<T>> : std::true_type {};
+    template <class T>
+    struct is_dart_api_type<dart::basic_flag<T>> : std::true_type {};
+    template <class T>
+    struct is_dart_api_type<dart::basic_null<T>> : std::true_type {};
+
+    template <class Lhs, class Rhs>
+    struct dart_comparison_constraints :
+      meta::conjunction<
+        meta::disjunction<
+          detail::is_dart_api_type<std::decay_t<Lhs>>,
+          detail::is_dart_api_type<std::decay_t<Rhs>>
+        >,
+        convert::is_comparable<Lhs>,
+        convert::is_comparable<Rhs>
+      >
+    {};
   }
 
-  DART_DEFINE_EQUALITY_OPERATORS(basic_heap);
-  DART_DEFINE_EQUALITY_OPERATORS(basic_buffer);
-  DART_DEFINE_EQUALITY_OPERATORS(basic_packet);
-#undef DART_DEFINE_EQUALITY_OPERATORS
-
-#define DART_DEFINE_WRAPPER_EQUALITY_OPERATORS(wrapper_temp)                                                    \
-  template <class T,                                                                                            \
-           template <class> class RC,                                                                           \
-           template <template <class> class> class Packet, class =                                              \
-    std::enable_if_t<                                                                                           \
-      convert::is_comparable<T, Packet<RC>>::value                                                              \
-    >                                                                                                           \
-  >                                                                                                             \
-  bool operator ==(wrapper_temp<Packet<RC>> const& lhs, T const& rhs) {                                         \
-    return convert::compare(lhs.dynamic(), rhs);                                                                \
-  }                                                                                                             \
-  template <class T,                                                                                            \
-           template <class> class RC,                                                                           \
-           template <template <class> class> class Packet, class =                                              \
-    std::enable_if_t<                                                                                           \
-      convert::is_comparable<T, Packet<RC>>::value                                                              \
-    >                                                                                                           \
-  >                                                                                                             \
-  bool operator ==(T const& lhs, wrapper_temp<Packet<RC>> const& rhs) {                                         \
-    return convert::compare(rhs.dynamic(), lhs);                                                                \
-  }                                                                                                             \
-  template <class T,                                                                                            \
-           template <class> class RC,                                                                           \
-           template <template <class> class> class Packet, class =                                              \
-    std::enable_if_t<                                                                                           \
-      convert::is_comparable<T, Packet<RC>>::value                                                              \
-    >                                                                                                           \
-  >                                                                                                             \
-  bool operator !=(wrapper_temp<Packet<RC>> const& lhs, T const& rhs) {                                         \
-    return !(lhs == rhs);                                                                                       \
-  }                                                                                                             \
-  template <class T,                                                                                            \
-           template <class> class RC,                                                                           \
-           template <template <class> class> class Packet, class =                                              \
-    std::enable_if_t<                                                                                           \
-      convert::is_comparable<T, Packet<RC>>::value                                                              \
-    >                                                                                                           \
-  >                                                                                                             \
-  bool operator !=(T const& lhs, wrapper_temp<Packet<RC>> const& rhs) {                                         \
-    return !(lhs == rhs);                                                                                       \
+  template <class Lhs, class Rhs, class =
+    std::enable_if_t<
+      detail::dart_comparison_constraints<Lhs, Rhs>::value
+    >
+  >
+  bool operator ==(Lhs const& lhs, Rhs const& rhs) {
+    return convert::compare(lhs, rhs);
   }
 
-  DART_DEFINE_WRAPPER_EQUALITY_OPERATORS(basic_object);
-  DART_DEFINE_WRAPPER_EQUALITY_OPERATORS(basic_array);
-  DART_DEFINE_WRAPPER_EQUALITY_OPERATORS(basic_string);
-  DART_DEFINE_WRAPPER_EQUALITY_OPERATORS(basic_number);
-  DART_DEFINE_WRAPPER_EQUALITY_OPERATORS(basic_flag);
-  DART_DEFINE_WRAPPER_EQUALITY_OPERATORS(basic_null);
-#undef DART_DEFINE_WRAPPER_EQUALITY_OPERATORS
+  template <class Lhs, class Rhs, class =
+    std::enable_if_t<
+      detail::dart_comparison_constraints<Lhs, Rhs>::value
+    >
+  >
+  bool operator !=(Lhs const& lhs, Rhs const& rhs) {
+    return !(lhs == rhs);
+  }
 
-  // Macro defines an std::ostream redirection operator for a wrapper type.
 #if DART_HAS_RAPIDJSON
-#define DART_DEFINE_WRAPPER_OSTREAM_OPERATOR(wrapper)                                                           \
-  template <class Packet>                                                                                       \
-  std::ostream& operator <<(std::ostream& out, wrapper<Packet> const& dart) {                                   \
-    out << dart.to_json();                                                                                      \
-    return out;                                                                                                 \
-  }
-
-  DART_DEFINE_WRAPPER_OSTREAM_OPERATOR(basic_object);
-  DART_DEFINE_WRAPPER_OSTREAM_OPERATOR(basic_array);
-  DART_DEFINE_WRAPPER_OSTREAM_OPERATOR(basic_string);
-  DART_DEFINE_WRAPPER_OSTREAM_OPERATOR(basic_number);
-  DART_DEFINE_WRAPPER_OSTREAM_OPERATOR(basic_flag);
-  DART_DEFINE_WRAPPER_OSTREAM_OPERATOR(basic_null);
-#undef DART_DEFINE_WRAPPER_OSTREAM_OPERATOR
-#endif
-
-  // Lazy, but effective.
-#if DART_HAS_RAPIDJSON
-  template <template <template <class> class> class Packet, template <class> class RefCount>
-  std::ostream& operator <<(std::ostream& out, Packet<RefCount> const& dart) {
+  template <class Packet, class =
+    std::enable_if_t<
+      detail::is_dart_api_type<Packet>::value
+    >
+  >
+  std::ostream& operator <<(std::ostream& out, Packet const& dart) {
     out << dart.to_json();
     return out;
   }

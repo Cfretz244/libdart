@@ -79,15 +79,16 @@ namespace dart {
           if (static_cast<void const*>(&lhs) == static_cast<void const*>(&rhs)) return true;
 
           // Check if we're sure we're even the same type.
+          auto rawlhs = lhs.raw, rawrhs = rhs.raw;
           if (lhs.is_null() && rhs.is_null()) return true;
           else if (lhs.get_type() != rhs.get_type()) return false;
-          else if (lhs.raw.buffer == rhs.raw.buffer) return true;
+          else if (rawlhs.buffer == rawrhs.buffer) return true;
 
           // Fall back on a comparison of the underlying buffers.
-          auto lhs_size = dart::detail::find_sizeof<RefCount>(lhs);
-          auto rhs_size = dart::detail::find_sizeof<RefCount>(rhs);
+          auto lhs_size = dart::detail::find_sizeof<RefCount>(rawlhs);
+          auto rhs_size = dart::detail::find_sizeof<RefCount>(rawrhs);
           if (lhs_size == rhs_size) {
-            return std::equal(lhs.buffer, lhs.buffer + lhs_size, rhs.buffer);
+            return std::equal(rawlhs.buffer, rawlhs.buffer + lhs_size, rawrhs.buffer);
           } else {
             return false;
           }
@@ -120,7 +121,7 @@ namespace dart {
               // Ouch.
               // Iterates over rhs and looks up into lhs because lhs is the finalized
               // object and lookups should be significantly faster on it.
-              typename decltype(rhs)::iterator k, v;
+              typename std::decay_t<Rhs>::iterator k, v;
               std::tie(k, v) = rhs.kvbegin();
               while (v != rhs.end()) {
                 if (*v != lhs[*k]) return false;
@@ -243,10 +244,10 @@ namespace dart {
 
       // Makes the question of whether a user comparison is defined SFINAEable
       // so that it can be used in meta::is_detected.
-      template <class T, class Packet>
+      template <class Packet, class T>
       using user_compare_t =
           decltype(std::declval<to_dart<std::decay_t<T>>>().template
-                compare<Packet>(std::declval<Packet const&>(), std::declval<T>()));
+                compare(std::declval<Packet const&>(), std::declval<T>()));
 
       // Calculates if two dart types are using the same reference counter
       // implementation, even if the two dart types aren't the same.
@@ -464,31 +465,43 @@ namespace dart {
         }
       };
 
+      // These overloads have to exist to avoid ambiguity.
+      // Argument order is not enormously significant.
+      // Performs all calls in terms of dart_tag as wrapper_tag just defers to dart_tag.
       template <class Lhs, class Rhs>
       bool compare_dispatch(dart_tag, dart_tag, Lhs const& lhs, Rhs const& rhs) {
         return detail::compare_impl<dart_tag>::template compare(lhs, rhs);
       }
-
+      template <class Lhs, class Rhs>
+      bool compare_dispatch(dart_tag, wrapper_tag, Lhs const& lhs, Rhs const& rhs) {
+        return detail::compare_impl<dart_tag>::template compare(lhs, rhs.dynamic());
+      }
+      template <class Lhs, class Rhs>
+      bool compare_dispatch(wrapper_tag, dart_tag, Lhs const& lhs, Rhs const& rhs) {
+        return detail::compare_impl<dart_tag>::template compare(rhs, lhs.dynamic());
+      }
       template <class Lhs, class Rhs>
       bool compare_dispatch(wrapper_tag, wrapper_tag, Lhs const& lhs, Rhs const& rhs) {
-        return detail::compare_impl<wrapper_tag>::template compare(lhs.dynamic(), rhs);
+        return detail::compare_impl<dart_tag>::template compare(lhs.dynamic(), rhs.dynamic());
       }
 
+      // These are the actual important calls, and argument order is significant as
+      // all of the compare_impl functions expect Lhs to be a dart type.
+      // The purpose of this whole run-around is so that the user can pass arguments
+      // into dart::convert::compare in either order, and pass either a dart packet type,
+      // or a wrapper type, without issue.
       template <class Free, class Lhs, class Rhs>
       bool compare_dispatch(dart_tag, Free, Lhs const& lhs, Rhs const& rhs) {
         return detail::compare_impl<Free>::template compare(lhs, rhs);
       }
-
       template <class Free, class Lhs, class Rhs>
       bool compare_dispatch(wrapper_tag, Free, Lhs const& lhs, Rhs const& rhs) {
         return detail::compare_impl<Free>::template compare(lhs.dynamic(), rhs);
       }
-
       template <class Free, class Lhs, class Rhs>
       bool compare_dispatch(Free, dart_tag, Lhs const& lhs, Rhs const& rhs) {
         return detail::compare_impl<Free>::template compare(rhs, lhs);
       }
-
       template <class Free, class Lhs, class Rhs>
       bool compare_dispatch(Free, wrapper_tag, Lhs const& lhs, Rhs const& rhs) {
         return detail::compare_impl<Free>::template compare(rhs.dynamic(), lhs);
@@ -607,21 +620,9 @@ namespace dart {
       >
     {};
 
-    template <class T, class Packet, class Normalized = detail::normalize_t<T>>
+    template <class T, class Normalized = detail::normalize_t<T>>
     struct is_comparable :
       meta::disjunction<
-        // We can compare if given a builtin or dart type
-        meta::contained<
-          Normalized,
-          convert::detail::dart_tag,
-          convert::detail::wrapper_tag,
-          convert::detail::string_tag,
-          convert::detail::decimal_tag,
-          convert::detail::integer_tag,
-          convert::detail::boolean_tag,
-          convert::detail::null_tag
-        >,
-
         // If we've been given a user type...
         meta::conjunction<
           std::is_same<
@@ -633,8 +634,16 @@ namespace dart {
           // equality struct.
           meta::is_detected<
             detail::user_compare_t,
-            Packet,
+            dart::basic_packet<std::shared_ptr>,
             T
+          >
+        >,
+
+        // If we've been given a machine or internal type, we can do it.
+        meta::negation<
+          std::is_same<
+            Normalized,
+            convert::detail::user_tag
           >
         >
       >
