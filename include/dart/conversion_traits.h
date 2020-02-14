@@ -470,19 +470,19 @@ namespace dart {
       // Performs all calls in terms of dart_tag as wrapper_tag just defers to dart_tag.
       template <class Lhs, class Rhs>
       bool compare_dispatch(dart_tag, dart_tag, Lhs const& lhs, Rhs const& rhs) {
-        return detail::compare_impl<dart_tag>::template compare(lhs, rhs);
+        return detail::compare_impl<dart_tag>::compare(lhs, rhs);
       }
       template <class Lhs, class Rhs>
       bool compare_dispatch(dart_tag, wrapper_tag, Lhs const& lhs, Rhs const& rhs) {
-        return detail::compare_impl<dart_tag>::template compare(lhs, rhs.dynamic());
+        return detail::compare_impl<dart_tag>::compare(lhs, rhs.dynamic());
       }
       template <class Lhs, class Rhs>
       bool compare_dispatch(wrapper_tag, dart_tag, Lhs const& lhs, Rhs const& rhs) {
-        return detail::compare_impl<dart_tag>::template compare(rhs, lhs.dynamic());
+        return detail::compare_impl<dart_tag>::compare(rhs, lhs.dynamic());
       }
       template <class Lhs, class Rhs>
       bool compare_dispatch(wrapper_tag, wrapper_tag, Lhs const& lhs, Rhs const& rhs) {
-        return detail::compare_impl<dart_tag>::template compare(lhs.dynamic(), rhs.dynamic());
+        return detail::compare_impl<dart_tag>::compare(lhs.dynamic(), rhs.dynamic());
       }
 
       // These are the actual important calls, and argument order is significant as
@@ -492,19 +492,19 @@ namespace dart {
       // or a wrapper type, without issue.
       template <class Free, class Lhs, class Rhs>
       bool compare_dispatch(dart_tag, Free, Lhs const& lhs, Rhs const& rhs) {
-        return detail::compare_impl<Free>::template compare(lhs, rhs);
+        return detail::compare_impl<Free>::compare(lhs, rhs);
       }
       template <class Free, class Lhs, class Rhs>
       bool compare_dispatch(wrapper_tag, Free, Lhs const& lhs, Rhs const& rhs) {
-        return detail::compare_impl<Free>::template compare(lhs.dynamic(), rhs);
+        return detail::compare_impl<Free>::compare(lhs.dynamic(), rhs);
       }
       template <class Free, class Lhs, class Rhs>
       bool compare_dispatch(Free, dart_tag, Lhs const& lhs, Rhs const& rhs) {
-        return detail::compare_impl<Free>::template compare(rhs, lhs);
+        return detail::compare_impl<Free>::compare(rhs, lhs);
       }
       template <class Free, class Lhs, class Rhs>
       bool compare_dispatch(Free, wrapper_tag, Lhs const& lhs, Rhs const& rhs) {
-        return detail::compare_impl<Free>::template compare(rhs.dynamic(), lhs);
+        return detail::compare_impl<Free>::compare(rhs.dynamic(), lhs);
       }
 
     }
@@ -547,6 +547,37 @@ namespace dart {
       return detail::caster_impl<detail::normalize_t<T>>::template cast<Packet>(std::forward<T>(val));
     }
 
+    /**
+     *  @brief
+     *  Function can be used to compare a Dart type against any registered type.
+     *
+     *  @details
+     *  Say you had a simple custom string class along the lines of the following:
+     *  ```
+     *  struct my_string {
+     *    std::string str;
+     *  };
+     *  ```
+     *  And you wanted to be able to perform operations like so:
+     *  ```
+     *  dart::string str {"hello"};
+     *  my_string mystr {"hello"};
+     *  assert(str == mystr);
+     *  ```
+     *  You can accomplish this by specializing the struct `dart::convert::to_dart`
+     *  with your custom type and implementing a compare function like so:
+     *  ```
+     *  namespace dart::convert {
+     *    template <>
+     *    struct to_dart<my_string> {
+     *      template <class Packet>
+     *      bool compare(Packet const& pkt, my_string const& s) {
+     *        return pkt.strv() == s.str;
+     *      }
+     *    };
+     *  }
+     *  ```
+     */
     template <class Lhs, class Rhs>
     bool compare(Lhs const& lhs, Rhs const& rhs) {
       return detail::compare_dispatch(detail::normalize_t<Lhs> {}, detail::normalize_t<Rhs> {}, lhs, rhs);
@@ -620,6 +651,21 @@ namespace dart {
       >
     {};
 
+    /**
+     *  @brief
+     *  Meta-function calculates whether a call to dart::convert::compare will be well-formed
+     *  for a particular T.
+     *
+     *  @details
+     *  The expression:
+     *  ```
+     *  static_assert(dart::convert::is_comparable<T>::value);
+     *  ```
+     *  Will compile successfully for any T that is either a builtin machine type,
+     *  is an STL container of builtin machine types, is a user type for which
+     *  a comparison has been defined using the comparison API, or is an STL container
+     *  of such a user type.
+     */
     template <class T, class Normalized = detail::normalize_t<T>>
     struct is_comparable :
       meta::disjunction<
@@ -649,6 +695,8 @@ namespace dart {
       >
     {};
 
+    // Converts a sequence of arguments convertible to Dart types
+    // into a gsl::span of Dart types backed by stack-based storage.
     template <class Packet = dart::basic_packet<std::shared_ptr>, class Callback, class... Args, class =
       std::enable_if_t<
         meta::conjunction<
@@ -664,9 +712,51 @@ namespace dart {
       return std::forward<Callback>(cb)(gsl::make_span(storage));
     }
 
+    namespace detail {
+      // General case of comparing a Dart type against a std map.
+      template <class Packet, class Map>
+      bool generic_map_compare(Packet const& pkt, Map const& map, std::true_type) {
+        // Lookup into the packet will be much faster if it's finalized,
+        // and the same if not, so iterate over the map.
+        typename Packet::view v = pkt;
+        for (auto& pair : map) {
+          auto val = v[pair.first];
+          if (val != pair.second) return false;
+        }
+        return true;
+      }
+
+      // Have to create a template parameter for dart::basic_heap here to force it
+      // to be a dependent name and delay template instantiation as it's currently
+      // an incomplete type.
+      // Note that we CAN'T just use Packet here instead of Tmp, as would be most
+      // idiomatic, as Packet could be a specilization of dart::basic_buffer, which
+      // can't be constructed from a string directly.
+      // This whole trick works because the dart subscript operators work with anything
+      // that LOOKS like a Dart type, not any type in particular.
+      template <class Packet, class Map, class Tmp = dart::basic_heap<std::shared_ptr>>
+      bool generic_map_compare(Packet const& pkt, Map const& map, std::false_type) {
+        // This is truly unfortunate.
+        // The user gave us a map implementation with
+        // a key type that IS convertible into a Dart type,
+        // but which is NOT convertible into std::string_view
+        // which means our only recourse is to create a temporary
+        // packet for each key with which to perform the lookup.
+        Tmp tmp;
+        typename Packet::view v = pkt;
+        for (auto& pair : map) {
+          tmp = convert::cast<Tmp>(pair.first);
+          auto val = v[tmp];
+          if (val != pair.second) return false;
+        }
+        return true;
+      }
+    }
+
     // Specialization for interoperability with std::vector
     template <class T, class Alloc>
     struct to_dart<std::vector<T, Alloc>> {
+      // Copy conversion
       template <class Packet, class =
         std::enable_if_t<
           convert::is_castable<T, Packet>::value
@@ -677,6 +767,8 @@ namespace dart {
         for (auto& val : vec) pkt.push_back(val);
         return pkt;
       }
+
+      // Move conversion
       template <class Packet, class =
         std::enable_if_t<
           convert::is_castable<T, Packet>::value
@@ -687,11 +779,33 @@ namespace dart {
         for (auto& val : vec) pkt.push_back(std::move(val));
         return pkt;
       }
+
+      // Equality
+      template <class Packet, class =
+        std::enable_if_t<
+          convert::is_comparable<T>::value
+        >
+      >
+      bool compare(Packet const& pkt, std::vector<T, Alloc> const& vec) {
+        // Try to short-circuit.
+        if (!pkt.is_array()) return false;
+        else if (pkt.size() != vec.size()) return false;
+
+        // Iterate and check.
+        auto it = vec.cbegin();
+        typename Packet::view v = pkt;
+        for (auto val : v) {
+          if (val != *it) return false;
+          ++it;
+        }
+        return true;
+      }
     };
 
     // Specialization for interoperability with std::array
     template <class T, size_t len>
     struct to_dart<std::array<T, len>> {
+      // Copy conversion
       template <class Packet, class =
         std::enable_if_t<
           convert::is_castable<T, Packet>::value
@@ -702,6 +816,8 @@ namespace dart {
         for (auto& val : arr) pkt.push_back(val);
         return pkt;
       }
+
+      // Move conversion
       template <class Packet, class =
         std::enable_if_t<
           convert::is_castable<T, Packet>::value
@@ -712,11 +828,33 @@ namespace dart {
         for (auto& val : arr) pkt.push_back(std::move(val));
         return pkt;
       }
+
+      // Equality
+      template <class Packet, class =
+        std::enable_if_t<
+          convert::is_comparable<T>::value
+        >
+      >
+      bool compare(Packet const& pkt, std::array<T, len> const& arr) {
+        // Try to short-circuit.
+        if (!pkt.is_array()) return false;
+        else if (pkt.size() != len) return false;
+
+        // Iterate and check.
+        auto it = arr.cbegin();
+        typename Packet::view v = pkt;
+        for (auto val : v) {
+          if (val != *it) return false;
+          ++it;
+        }
+        return true;
+      }
     };
 
     // Specialization for interoperability with std::map
     template <class Key, class Value, class Comp, class Alloc>
     struct to_dart<std::map<Key, Value, Comp, Alloc>> {
+      // Copy conversion
       template <class Packet, class =
         std::enable_if_t<
           convert::is_castable<Key, Packet>::value
@@ -729,6 +867,8 @@ namespace dart {
         for (auto& pair : map) obj.add_field(pair.first, pair.second);
         return obj;
       }
+
+      // Move conversion
       template <class Packet, class =
         std::enable_if_t<
           convert::is_castable<Key, Packet>::value
@@ -741,11 +881,33 @@ namespace dart {
         for (auto& pair : map) obj.add_field(std::move(pair).first, std::move(pair).second);
         return obj;
       }
+
+      // Equality
+      template <class Packet, class =
+        std::enable_if_t<
+          convert::is_castable<Key, Packet>::value
+          &&
+          convert::is_comparable<Key>::value
+          &&
+          convert::is_comparable<Value>::value
+        >
+      >
+      bool compare(Packet const& pkt, std::map<Key, Value, Comp, Alloc> const& map) {
+        // Try to short-circuit.
+        if (!pkt.is_object()) return false;
+        else if (pkt.size() != map.size()) return false;
+
+        // We have to indirect through an implementation function here to handle an edge
+        // case where the user passed is a map with a key type that IS convertible to a
+        // Dart type, but which is NOT convertible to shim::string_view.
+        return detail::generic_map_compare(pkt, map, std::is_convertible<Key, shim::string_view> {});
+      }
     };
 
     // Specialization for interoperability with std::unordered_map
     template <class Key, class Value, class Hash, class Equal, class Alloc>
     struct to_dart<std::unordered_map<Key, Value, Hash, Equal, Alloc>> {
+      // Copy conversion
       template <class Packet, class =
         std::enable_if_t<
           convert::is_castable<Key, Packet>::value
@@ -758,6 +920,8 @@ namespace dart {
         for (auto& pair : map) obj.add_field(pair.first, pair.second);
         return obj;
       }
+
+      // Move conversion
       template <class Packet, class =
         std::enable_if_t<
           convert::is_castable<Key, Packet>::value
@@ -770,11 +934,33 @@ namespace dart {
         for (auto& pair : map) obj.add_field(std::move(pair).first, std::move(pair).second);
         return obj;
       }
+
+      // Equality
+      template <class Packet, class =
+        std::enable_if_t<
+          convert::is_castable<Key, Packet>::value
+          &&
+          convert::is_comparable<Key>::value
+          &&
+          convert::is_comparable<Value>::value
+        >
+      >
+      bool compare(Packet const& pkt, std::unordered_map<Key, Value, Hash, Equal, Alloc> const& map) {
+        // Try to short-circuit.
+        if (!pkt.is_object()) return false;
+        else if (pkt.size() != map.size()) return false;
+
+        // We have to indirect through an implementation function here to handle an edge
+        // case where the user passed is a map with a key type that IS convertible to a
+        // Dart type, but which is NOT convertible to shim::string_view.
+        return detail::generic_map_compare(pkt, map, std::is_convertible<Key, shim::string_view> {});
+      }
     };
 
     // Specialization for interoperability with std::optional.
     template <class T>
     struct to_dart<shim::optional<T>> {
+      // Copy conversion
       template <class Packet, class =
         std::enable_if_t<
           convert::is_castable<T, Packet>::value
@@ -784,6 +970,8 @@ namespace dart {
         if (opt) return convert::cast<Packet>(*opt);
         else return Packet::make_null();
       }
+
+      // Move conversion
       template <class Packet, class =
         std::enable_if_t<
           convert::is_castable<T, Packet>::value
@@ -793,11 +981,23 @@ namespace dart {
         if (opt) return convert::cast<Packet>(std::move(*opt));
         else return Packet::make_null();
       }
+
+      // Equality
+      template <class Packet, class =
+        std::enable_if_t<
+          convert::is_comparable<T>::value
+        >
+      >
+      bool compare(Packet const& pkt, std::optional<T> const& opt) {
+        if (opt) return pkt == *opt;
+        else return pkt.is_null();
+      }
     };
 
     // Specialization for interoperability with std::variant.
     template <class... Ts>
     struct to_dart<shim::variant<Ts...>> {
+      // Copy conversion
       template <class Packet, class =
         std::enable_if_t<
           meta::conjunction<
@@ -808,6 +1008,8 @@ namespace dart {
       Packet cast(shim::variant<Ts...> const& var) {
         return shim::visit([] (auto& val) { return convert::cast<Packet>(val); }, var);
       }
+
+      // Move conversion
       template <class Packet, class =
         std::enable_if_t<
           meta::conjunction<
@@ -818,16 +1020,42 @@ namespace dart {
       Packet cast(shim::variant<Ts...>&& var) {
         return shim::visit([] (auto&& val) { return convert::cast<Packet>(std::move(val)); }, std::move(var));
       }
+
+      // Equality
+      template <class Packet, class =
+        std::enable_if_t<
+          meta::conjunction<
+            convert::is_comparable<Ts>...
+          >::value
+        >
+      >
+      bool compare(Packet const& pkt, shim::variant<Ts...> const& var) {
+        return shim::visit([&] (auto& val) { return val == pkt; }, var);
+      }
     };
 
     // Specialization for interoperability with std::tuple.
     template <class... Ts>
     struct to_dart<std::tuple<Ts...>> {
       template <class Packet, class Tuple, size_t... idxs>
-      Packet unpack(Tuple&& tup, std::index_sequence<idxs...>) {
+      Packet unpack_convert(Tuple&& tup, std::index_sequence<idxs...>) {
         return Packet::make_array(std::get<idxs>(std::forward<Tuple>(tup))...);
       }
 
+      template <class PackIt, class Tuple>
+      bool unpack_compare_impl(PackIt&& curr, Tuple const& tup) {
+        return true;
+      }
+      template <size_t idx, size_t... idxs, class PackIt, class Tuple>
+      bool unpack_compare_impl(PackIt&& curr, Tuple const& tup) {
+        return (*curr == std::get<idx>(tup)) && unpack_compare_impl<idxs...>(++curr, tup);
+      }
+      template <class Packet, class Tuple, size_t... idxs>
+      bool unpack_compare(Packet const& pkt, Tuple const& tup, std::index_sequence<idxs...>) {
+        return unpack_compare_impl<idxs...>(pkt.begin(), tup);
+      }
+
+      // Copy conversion
       template <class Packet, class =
         std::enable_if_t<
           meta::conjunction<
@@ -836,8 +1064,10 @@ namespace dart {
         >
       >
       Packet cast(std::tuple<Ts...> const& tup) {
-        return unpack<Packet>(tup, std::index_sequence_for<Ts...> {});
+        return unpack_convert<Packet>(tup, std::index_sequence_for<Ts...> {});
       }
+
+      // Move conversion
       template <class Packet, class =
         std::enable_if_t<
           meta::conjunction<
@@ -846,16 +1076,36 @@ namespace dart {
         >
       >
       Packet cast(std::tuple<Ts...>&& tup) {
-        return unpack<Packet>(std::move(tup), std::index_sequence_for<Ts...> {});
+        return unpack_convert<Packet>(std::move(tup), std::index_sequence_for<Ts...> {});
+      }
+
+      // Equality
+      template <class Packet, class =
+        std::enable_if_t<
+          meta::conjunction<
+            convert::is_comparable<Ts>...
+          >::value
+        >
+      >
+      bool compare(Packet const& pkt, std::tuple<Ts...> const& tup) {
+        if (pkt.size() != sizeof...(Ts)) return false;
+        return unpack_compare(pkt, tup, std::index_sequence_for<Ts...> {});
       }
     };
 
     // Bizzarely useful in some meta-programming situations.
     template <class T, T val>
     struct to_dart<std::integral_constant<T, val>> {
+      // Conversion
       template <class Packet>
       Packet cast(std::integral_constant<T, val>) {
         return convert::cast<Packet>(val);
+      }
+
+      // Equality
+      template <class Packet>
+      bool compare(Packet const& pkt, std::integral_constant<T, val>) {
+        return pkt == convert::cast<Packet>(val);
       }
     };
 
