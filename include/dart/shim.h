@@ -133,6 +133,15 @@ namespace dart {
 #endif
 
 #ifdef DART_HAS_CPP17
+// It's impossible in C++ to create a new name for an
+// existing template outside of binding a template-template
+// parameter, so there are meta-programming contexts
+// where we need the ability to unambiguously name the
+// precise type we're using for our string view.
+// Note that an alias template isn't sufficient for what
+// we need here.
+#define DART_STRING_VIEW_NS std
+
     // Pull in names of types.
     using std::optional;
     using std::nullopt_t;
@@ -165,6 +174,15 @@ namespace dart {
       return compose {std::forward<Ls>(lambdas)...};
     }
 #else
+// It's impossible in C++ to create a new name for an
+// existing template outside of binding a template-template
+// parameter, so there are meta-programming contexts
+// where we need the ability to unambiguously name the
+// precise type we're using for our string view.
+// Note that an alias template isn't sufficient for what
+// we need here.
+#define DART_STRING_VIEW_NS dart
+
     // Pull in names of types.
     using dart::optional;
     using dart::nullopt_t;
