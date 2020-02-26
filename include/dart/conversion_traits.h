@@ -275,8 +275,12 @@ namespace dart {
       // Makes the question of whether a user conversion is defined SFINAEable
       // so that it can be used in meta::is_detected.
       template <class T, class Packet>
-      using user_cast_t =
+      using user_cast_in_t =
           decltype(std::declval<to_dart<std::decay_t<T>>>().template cast<Packet>(std::declval<T>()));
+
+      template <class T, class Packet>
+      using user_cast_out_t =
+          decltype(std::declval<from_dart<std::decay_t<T>>>().cast(std::declval<Packet>()));
 
       // Makes the question of whether a user comparison is defined SFINAEable
       // so that it can be used in meta::is_detected.
@@ -341,12 +345,12 @@ namespace dart {
           meta::conjunction<
             std::is_same<
               Category,
-              convert::detail::user_tag
+              user_tag
             >,
 
             // And the user has specialized the user equality struct.
             meta::is_detected<
-              detail::user_compare_t,
+              user_compare_t,
               T,
               Packet
             >
@@ -356,7 +360,7 @@ namespace dart {
           meta::negation<
             std::is_same<
               Category,
-              convert::detail::user_tag
+              user_tag
             >
           >
         >
@@ -377,7 +381,7 @@ namespace dart {
             meta::negation<
               std::is_same<
                 Category,
-                convert::detail::user_tag
+                user_tag
               >
             >,
             
@@ -389,23 +393,23 @@ namespace dart {
 
       template <class From, class To, class Category>
       struct is_incoming_castable :
-        // The given type is castable if...
+        // The given type can be converted into a Dart type if...
         meta::disjunction<
           // It is a built in type.
           meta::contained<
             Category,
-            convert::detail::string_tag,
-            convert::detail::decimal_tag,
-            convert::detail::integer_tag,
-            convert::detail::boolean_tag,
-            convert::detail::null_tag
+            string_tag,
+            decimal_tag,
+            integer_tag,
+            boolean_tag,
+            null_tag
           >,
 
           // It is a dart type...
           meta::conjunction<
             std::is_same<
               Category,
-              convert::detail::dart_tag
+              dart_tag
             >,
 
             // And the reference counters are the same.
@@ -419,7 +423,7 @@ namespace dart {
           meta::conjunction<
             std::is_same<
               Category,
-              convert::detail::wrapper_tag
+              wrapper_tag
             >,
 
             // And the reference counters are the same.
@@ -433,12 +437,12 @@ namespace dart {
           meta::conjunction<
             std::is_same<
               Category,
-              convert::detail::user_tag
+              user_tag
             >,
 
             // And the user has specialized the user conversion struct.
             meta::is_detected<
-              detail::user_cast_t,
+              user_cast_in_t,
               From,
               To
             >
@@ -447,7 +451,53 @@ namespace dart {
       {};
 
       template <class From, class To, class Category>
-      struct is_outgoing_castable : std::true_type {};
+      struct is_outgoing_castable :
+        // We can convert from a Dart type to the given type if...
+        meta::disjunction<
+          // It is a primitive type other than a string.
+          meta::negation<
+            meta::contained<
+              Category,
+              user_tag,
+              dart_tag,
+              wrapper_tag,
+              string_tag
+            >
+          >,
+
+          // The target type is a string...
+          meta::conjunction<
+            std::is_same<
+              Category,
+              string_tag
+            >,
+
+            // And it is either NOT a character pointer,
+            // or it is a CONST character pointer.
+            meta::disjunction<
+              meta::negation<
+                std::is_pointer<To>
+              >,
+              meta::is_ptr_to_const<To>
+            >
+          >,
+
+          // The target type is a user type...
+          meta::conjunction<
+            std::is_same<
+              Category,
+              user_tag
+            >,
+
+            // And the user has specialized the user conversion struct.
+            meta::is_detected<
+              user_cast_out_t,
+              From,
+              To
+            >
+          >
+        >
+      {};
 
       // The dart::convert::are_comparable type trait can receive
       // arguments in either order, so this dispatch struct takes care
@@ -850,14 +900,13 @@ namespace dart {
 
       // These overloads have to exist to avoid overload ambiguity.
       // Argument order is not enormously significant.
-      // Performs all calls in terms of dart_tag as wrapper_tag just defers to dart_tag.
       template <class Lhs, class Rhs>
       bool compare_dispatch(dart_tag, dart_tag, Lhs const& lhs, Rhs const& rhs) {
         return detail::compare_impl<dart_tag>::compare(lhs, rhs);
       }
       template <class Lhs, class Rhs>
       bool compare_dispatch(dart_tag, wrapper_tag, Lhs const& lhs, Rhs const& rhs) {
-        return detail::compare_impl<dart_tag>::compare(lhs, rhs.dynamic());
+        return detail::compare_impl<wrapper_tag>::compare(lhs, rhs);
       }
       template <class Lhs, class Rhs>
       bool compare_dispatch(wrapper_tag, dart_tag, Lhs const& lhs, Rhs const& rhs) {
@@ -865,7 +914,7 @@ namespace dart {
       }
       template <class Lhs, class Rhs>
       bool compare_dispatch(wrapper_tag, wrapper_tag, Lhs const& lhs, Rhs const& rhs) {
-        return detail::compare_impl<dart_tag>::compare(lhs.dynamic(), rhs.dynamic());
+        return detail::compare_impl<wrapper_tag>::compare(lhs.dynamic(), rhs);
       }
 
       // These are the actual important calls, and argument order is significant as
@@ -888,6 +937,42 @@ namespace dart {
       template <class Free, class Lhs, class Rhs>
       bool compare_dispatch(Free, wrapper_tag, Lhs const& lhs, Rhs const& rhs) {
         return detail::compare_impl<Free>::compare(rhs.dynamic(), lhs);
+      }
+
+      // These overloads have to exist to avoid overload ambiguity.
+      // Argument order is not enormously significant.
+      template <class To, class From>
+      decltype(auto) cast_dispatch(dart_tag, dart_tag, From&& val) {
+        return detail::incoming_caster<dart_tag>::template cast<To>(std::forward<From>(val));
+      }
+      template <class To, class From>
+      decltype(auto) cast_dispatch(dart_tag, wrapper_tag, From&& val) {
+        return detail::incoming_caster<dart_tag>::template cast<typename To::value_type>(std::forward<From>(val));
+      }
+      template <class To, class From>
+      decltype(auto) cast_dispatch(wrapper_tag, dart_tag, From&& val) {
+        return detail::incoming_caster<wrapper_tag>::template cast<To>(std::forward<From>(val));
+      }
+      template <class To, class From>
+      decltype(auto) cast_dispatch(wrapper_tag, wrapper_tag, From&& val) {
+        return detail::incoming_caster<wrapper_tag>::template <typename To::value_type>(std::forward<From>(val));
+      }
+
+      template <class To, class From, class Free>
+      decltype(auto) cast_dispatch(dart_tag, Free, From&& val) {
+        return detail::outgoing_caster<Free>::template cast<To>(std::forward<From>(val));
+      }
+      template <class To, class From, class Free>
+      decltype(auto) cast_dispatch(wrapper_tag, Free, From&& val) {
+        return detail::outgoing_caster<Free>::template cast<typename To::value_type>(std::forward<From>(val));
+      }
+      template <class To, class From, class Free>
+      decltype(auto) cast_dispatch(Free, dart_tag, From&& val) {
+        return detail::incoming_caster<Free>::template cast<To>(std::forward<From>(val));
+      }
+      template <class To, class From, class Free>
+      decltype(auto) cast_dispatch(Free, wrapper_tag, From&& val) {
+        return detail::incoming_caster<Free>::template cast<typename To::value_type>(std::forward<From>(val));
       }
 
     }

@@ -112,6 +112,11 @@ namespace dart {
     template <class T>
     using canonical_type_t = typename canonical_type<T>::type;
 
+    template <class T>
+    struct is_ptr_to_const : std::false_type {};
+    template <class T>
+    struct is_ptr_to_const<T const*> : std::true_type {};
+
     // Create type traits to check for each type of comparison.
     template <class Lhs, class Rhs, class = void>
     struct are_comparable : std::false_type {};
