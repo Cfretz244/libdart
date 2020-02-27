@@ -4783,16 +4783,6 @@ namespace dart {
 
       /**
        *  @brief
-       *  Existential operator (bool conversion operator).
-       *
-       *  @details
-       *  Operator returns false if the current packet is null or false.
-       *  Returns true in all other situations.
-       */
-      explicit operator bool() const noexcept;
-
-      /**
-       *  @brief
        *  Operator allows for converting the current heap instance into a
        *  non-owning, read-only, view
        */
@@ -4801,43 +4791,29 @@ namespace dart {
 
       /**
        *  @brief
-       *  String conversion operator.
-       *
-       *  @details
-       *  Returns the string value of the current packet or throws
-       *  if no such value exists.
+       *  Generic conversion operator.
        */
-      explicit operator std::string() const;
+      template <class T, class EnableIf =
+        std::enable_if_t<
+          !meta::is_higher_specialization_of<T, basic_packet>::value
+          &&
+          convert::is_castable<basic_heap, T>::value
+        >
+      >
+      explicit operator T() const&;
 
       /**
        *  @brief
-       *  String conversion operator.
-       *
-       *  @details
-       *  Returns the string value of the current packet or throws
-       *  if no such value exists.
+       *  Generic conversion operator.
        */
-      explicit operator shim::string_view() const;
-
-      /**
-       *  @brief
-       *  Integer conversion operator.
-       *
-       *  @details
-       *  Returns the integer value of the current packet or throws
-       *  if no such value exists.
-       */
-      explicit operator int64_t() const;
-
-      /**
-       *  @brief
-       *  Decimal conversion operator.
-       *
-       *  @details
-       *  Returns the decimal value of the current packet or throws
-       *  if no such value exists.
-       */
-      explicit operator double() const;
+      template <class T, class EnableIf =
+        std::enable_if_t<
+          !meta::is_higher_specialization_of<T, basic_packet>::value
+          &&
+          convert::is_castable<basic_heap, T>::value
+        >
+      >
+      explicit operator T() &&;
 
       /*----- Public API -----*/
 
@@ -7092,6 +7068,8 @@ namespace dart {
 
       template <class PacketType>
       friend struct convert::detail::typed_compare;
+      template <class From, class To>
+      friend struct convert::detail::api_converter;
       
       template <template <class> class RC>
       friend class basic_heap;
@@ -7289,18 +7267,6 @@ namespace dart {
       explicit basic_buffer(T&& val) :
         basic_buffer(convert::cast<basic_heap<RefCount>>(std::forward<T>(val)))
       {}
-
-      /**
-       *  @brief
-       *  Converting constructor.
-       *  Explicitly converts a dart::heap into a dart::buffer.
-       */
-      template <bool enabled = refcount::is_owner<RefCount>::value, class EnableIf =
-        std::enable_if_t<
-          enabled
-        >
-      >
-      explicit basic_buffer(basic_heap<RefCount> const& heap);
 
       /**
        *  @brief
@@ -7662,16 +7628,6 @@ namespace dart {
 
       /**
        *  @brief
-       *  Existential operator (bool conversion operator).
-       *
-       *  @details
-       *  Operator returns false if the current packet is null or false.
-       *  Returns true in all other situations.
-       */
-      explicit operator bool() const noexcept;
-
-      /**
-       *  @brief
        *  Operator allows for converting the current buffer instance into a
        *  non-owning, read-only, view
        */
@@ -7680,54 +7636,29 @@ namespace dart {
 
       /**
        *  @brief
-       *  String conversion operator.
-       *
-       *  @details
-       *  Returns the string value of the current packet or throws
-       *  if no such value exists.
+       *  Generic conversion operator.
        */
-      explicit operator std::string() const;
+      template <class T, class EnableIf =
+        std::enable_if_t<
+          !meta::is_higher_specialization_of<T, basic_packet>::value
+          &&
+          convert::is_castable<basic_buffer, T>::value
+        >
+      >
+      explicit operator T() const&;
 
       /**
        *  @brief
-       *  String conversion operator.
-       *
-       *  @details
-       *  Returns the string value of the current packet or throws
-       *  if no such value exists.
+       *  Generic conversion operator.
        */
-      explicit operator shim::string_view() const;
-
-      /**
-       *  @brief
-       *  Integer conversion operator.
-       *
-       *  @details
-       *  Returns the integer value of the current packet or throws
-       *  if no such value exists.
-       */
-      explicit operator int64_t() const;
-
-      /**
-       *  @brief
-       *  Decimal conversion operator.
-       *
-       *  @details
-       *  Returns the decimal value of the current packet or throws
-       *  if no such value exists.
-       */
-      explicit operator double() const;
-
-      /**
-       *  @brief
-       *  dart::heap conversion operator.
-       *
-       *  @details
-       *  Function walks across the flattened object tree and lifts it
-       *  into a dynamic heap representation, making at least as many
-       *  allocations as nodes in the tree during the process.
-       */
-      explicit operator basic_heap<RefCount>() const;
+      template <class T, class EnableIf =
+        std::enable_if_t<
+          !meta::is_higher_specialization_of<T, basic_packet>::value
+          &&
+          convert::is_castable<basic_buffer, T>::value
+        >
+      >
+      explicit operator T() &&;
 
       /*----- Public API -----*/
 
@@ -9433,6 +9364,8 @@ namespace dart {
       friend class basic_packet;
       template <class PacketType>
       friend struct convert::detail::typed_compare;
+      template <class From, class To>
+      friend struct convert::detail::api_converter;
       friend struct detail::buffer_builder<RefCount>;
 
   };
@@ -10029,16 +9962,6 @@ namespace dart {
 
       /**
        *  @brief
-       *  Existential operator (bool conversion operator).
-       *
-       *  @details
-       *  Operator returns false if the current packet is null or false.
-       *  Returns true in all other situations.
-       */
-      explicit operator bool() const noexcept;
-
-      /**
-       *  @brief
        *  Operator allows for converting the current packet instance into a
        *  non-owning, read-only, view
        */
@@ -10047,101 +9970,25 @@ namespace dart {
 
       /**
        *  @brief
-       *  String conversion operator.
-       *
-       *  @details
-       *  Returns the string value of the current packet or throws
-       *  if no such value exists.
+       *  Generic conversion operator.
        */
-      explicit operator std::string() const;
+      template <class T, class EnableIf =
+        std::enable_if_t<
+          convert::is_castable<basic_packet, T>::value
+        >
+      >
+      explicit operator T() const&;
 
       /**
        *  @brief
-       *  String conversion operator.
-       *
-       *  @details
-       *  Returns the string value of the current packet or throws
-       *  if no such value exists.
+       *  Generic conversion operator.
        */
-      explicit operator shim::string_view() const;
-
-      /**
-       *  @brief
-       *  Integer conversion operator.
-       *
-       *  @details
-       *  Returns the integer value of the current packet or throws
-       *  if no such value exists.
-       */
-      explicit operator int64_t() const;
-
-      /**
-       *  @brief
-       *  Decimal conversion operator.
-       *
-       *  @details
-       *  Returns the decimal value of the current packet or throws
-       *  if no such value exists.
-       */
-      explicit operator double() const;
-
-      /**
-       *  @brief
-       *  dart::heap conversion operator.
-       *
-       *  @details
-       *  If the current packet isn't finalized, function simply unwraps and returns
-       *  a copy of the current instance (incrementing the reference counter).
-       *  If the current packet IS finalized, function walks across the flattened
-       *  object tree and lifts it into a dynamic heap representation,
-       *  making at least as many allocations as nodes in the tree during the process.
-       */
-      explicit operator basic_heap<RefCount>() const&;
-
-      /**
-       *  @brief
-       *  dart::heap conversion operator.
-       *
-       *  @details
-       *  If the current packet isn't finalized, function simply unwraps and returns
-       *  a copy of the current instance (incrementing the reference counter).
-       *  If the current packet IS finalized, function walks across the flattened
-       *  object tree and lifts it into a dynamic heap representation,
-       *  making at least as many allocations as nodes in the tree during the process.
-       *
-       *  @remarks
-       *  Rvalue ref overload exists to forward through conversions.
-       */
-      explicit operator basic_heap<RefCount>() &&;
-
-      /**
-       *  @brief
-       *  dart::buffer conversion operator.
-       *
-       *  @details
-       *  If the current packet isn't finalized, function walks across the dynamic
-       *  object tree and lowers it into a flattened buffer of bytes, making precisely
-       *  one allocation during the process.
-       *  If the current packet IS finalized, function simply unwraps and returns a copy
-       *  of the current instance (incrementing the reference counter).
-       */
-      explicit operator basic_buffer<RefCount>() const&;
-
-      /**
-       *  @brief
-       *  dart::buffer conversion operator.
-       *
-       *  @details
-       *  If the current packet isn't finalized, function walks across the dynamic
-       *  object tree and lowers it into a flattened buffer of bytes, making precisely
-       *  one allocation during the process.
-       *  If the current packet IS finalized, function simply unwraps and returns a copy
-       *  of the current instance (incrementing the reference counter).
-       *
-       *  @remarks
-       *  Rvalue ref overload exists to forward through conversions.
-       */
-      explicit operator basic_buffer<RefCount>() &&;
+      template <class T, class EnableIf =
+        std::enable_if_t<
+          convert::is_castable<basic_packet, T>::value
+        >
+      >
+      explicit operator T() &&;
 
       /*----- Public API -----*/
 
@@ -12668,6 +12515,8 @@ namespace dart {
 
       template <class PacketType>
       friend struct convert::detail::typed_compare;
+      template <class From, class To>
+      friend struct convert::detail::api_converter;
       friend struct detail::buffer_builder<RefCount>;
 
   };

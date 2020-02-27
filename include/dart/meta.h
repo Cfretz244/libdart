@@ -28,7 +28,8 @@ namespace dart {
     // Removes one level of "pointer to const", "pointer to volatile"
     // "reference to const", "reference to volatile", etc,
     // to make working with strings easier.
-    // Like std::remove_cv_t only way stronger
+    // Like std::decay except it doesn't decay C arrays,
+    // but it otherwise much stronger.
     template <class T>
     struct canonical_type {
       using type = T;

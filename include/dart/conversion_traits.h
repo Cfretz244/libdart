@@ -73,6 +73,128 @@ namespace dart {
         throw type_error(errmsg.c_str());
       }
 
+      template <class From, class To>
+      struct api_converter;
+      template <template <class> class RefCount>
+      struct api_converter<basic_buffer<RefCount>, basic_heap<RefCount>> {
+        using heap = basic_heap<RefCount>;
+        using buffer = basic_buffer<RefCount>;
+
+        template <class Buffer>
+        static heap convert(Buffer&& buff) {
+          switch (buff.get_type()) {
+            case dart::detail::type::object:
+              {
+                typename buffer::iterator k, v;
+                std::tie(k, v) = buff.kvbegin();
+                auto obj = heap::make_object();
+                while (v != buff.end()) {
+                  obj.add_field(heap {*k}, heap {*v});
+                  ++k, ++v;
+                }
+                return obj;
+              }
+            case dart::detail::type::array:
+              {
+                auto arr = heap::make_array();
+                for (auto elem : buff) arr.push_back(heap {std::move(elem)});
+                return arr;
+              }
+            case dart::detail::type::string:
+              return heap::make_string(buff.strv());
+            case dart::detail::type::integer:
+              return heap::make_integer(buff.integer());
+            case dart::detail::type::decimal:
+              return heap::make_decimal(buff.decimal());
+            case dart::detail::type::boolean:
+              return heap::make_boolean(buff.boolean());
+            default:
+              DART_ASSERT(buff.get_type() == dart::detail::type::null);
+              return heap::make_null();
+          }
+        }
+      };
+      template <template <class> class RefCount>
+      struct api_converter<basic_heap<RefCount>, basic_buffer<RefCount>> {
+        using heap = basic_heap<RefCount>;
+        using buffer = basic_buffer<RefCount>;
+
+        template <class Heap>
+        static buffer convert(Heap&& hp) {
+          if (!hp.is_object()) {
+            throw type_error("dart::buffer can only be constructed from an object heap");
+          }
+
+          // Calculate the maximum amount of memory that could be required to represent this dart::packet and
+          // allocate the whole thing in one go.
+          buffer buff;
+          size_t bytes = hp.upper_bound();
+          auto buftype = dart::detail::raw_type::object;
+          buff.buffer_ref = dart::detail::aligned_alloc<RefCount>(bytes, buftype, [&] (auto* buff) {
+            std::fill_n(buff, bytes, gsl::byte {});
+            hp.layout(buff);
+          });
+          buff.raw = {dart::detail::raw_type::object, buff.buffer_ref.get()};
+          return buff;
+        }
+      };
+      template <template <class> class RefCount>
+      struct api_converter<basic_packet<RefCount>, basic_heap<RefCount>> {
+        using heap = basic_heap<RefCount>;
+        using buffer = basic_buffer<RefCount>;
+        using packet = basic_packet<RefCount>;
+
+        inline static heap convert(packet const& pkt) {
+          auto* h = shim::get_if<heap>(&pkt.impl);
+          if (h) return *h;
+          else return heap {shim::get<buffer>(pkt.impl)};
+        }
+
+        inline static heap convert(packet&& pkt) {
+          auto* h = shim::get_if<heap>(&pkt.impl);
+          if (h) return std::move(*h);
+          else return heap {shim::get<buffer>(std::move(pkt.impl))};
+        }
+      };
+      template <template <class> class RefCount>
+      struct api_converter<basic_heap<RefCount>, basic_packet<RefCount>> {
+        using heap = basic_heap<RefCount>;
+        using packet = basic_packet<RefCount>;
+
+        template <class Heap>
+        static packet convert(Heap&& hp) {
+          return packet {std::forward<Heap>(hp)};
+        }
+      };
+      template <template <class> class RefCount>
+      struct api_converter<basic_packet<RefCount>, basic_buffer<RefCount>> {
+        using heap = basic_heap<RefCount>;
+        using buffer = basic_buffer<RefCount>;
+        using packet = basic_packet<RefCount>;
+
+        inline static buffer convert(packet const& pkt) {
+          auto* b = shim::get_if<buffer>(&pkt.impl);
+          if (b) return *b;
+          else return buffer {shim::get<heap>(pkt.impl)};
+        }
+
+        inline static buffer convert(packet&& pkt) {
+          auto* b = shim::get_if<buffer>(&pkt.impl);
+          if (b) return std::move(*b);
+          else return buffer {shim::get<heap>(std::move(pkt.impl))};
+        }
+      };
+      template <template <class> class RefCount>
+      struct api_converter<basic_buffer<RefCount>, basic_packet<RefCount>> {
+        using buffer = basic_buffer<RefCount>;
+        using packet = basic_packet<RefCount>;
+
+        template <class Buffer>
+        static packet convert(Buffer&& buff) {
+          return packet {std::forward<Buffer>(buff)};
+        }
+      };
+
       // Struct is basically a switch table of different Dart comparison operations
       // where both lhs and rhs are known to be specializations of the same Dart
       // template, even if instantiated with different reference counters.
@@ -413,7 +535,7 @@ namespace dart {
             >,
 
             // And the reference counters are the same.
-            detail::same_refcounter<
+            same_refcounter<
               std::decay_t<From>,
               To
             >
@@ -427,9 +549,9 @@ namespace dart {
             >,
 
             // And the reference counters are the same.
-            detail::same_wrapped_refcounter<
-              std::decay_t<From>,
-              To
+            same_wrapped_refcounter<
+              To,
+              std::decay_t<From>
             >
           >,
 
@@ -664,7 +786,7 @@ namespace dart {
           >* = nullptr
         >
         static TargetPacket cast(Packet&& pkt) {
-          return TargetPacket {std::forward<Packet>(pkt)};
+          return api_converter<std::decay_t<Packet>, TargetPacket>::convert(std::forward<Packet>(pkt));
         }
       };
       template <>
@@ -703,10 +825,11 @@ namespace dart {
       struct outgoing_caster<boolean_tag> {
         template <class, class Packet>
         static bool cast(Packet const& pkt) {
-          if (!pkt.is_boolean()) {
-            report_type_mismatch(dart::detail::type::boolean, pkt.get_type());
+          if (pkt.is_boolean()) {
+            return pkt.boolean();
+          } else {
+            return !pkt.is_null();
           }
-          return pkt.boolean();
         }
       };
       template <>
@@ -753,8 +876,15 @@ namespace dart {
           >* = nullptr
         >
         static T cast(Packet const& pkt) {
-          // FIXME: Need to decide how to handle
-          // the user requesting char* here.
+          static_assert(
+            meta::disjunction<
+              meta::negation<
+                std::is_pointer<T>
+              >,
+              meta::is_ptr_to_const<T>
+            >::value,
+            "This assert shouldn't fire. Please file a bug report."
+          );
           return pkt.str();
         }
       };
@@ -955,7 +1085,7 @@ namespace dart {
       }
       template <class To, class From>
       decltype(auto) cast_dispatch(wrapper_tag, wrapper_tag, From&& val) {
-        return detail::incoming_caster<wrapper_tag>::template <typename To::value_type>(std::forward<From>(val));
+        return detail::incoming_caster<wrapper_tag>::template cast<typename To::value_type>(std::forward<From>(val));
       }
 
       template <class To, class From, class Free>
@@ -1089,9 +1219,11 @@ namespace dart {
      *  }
      *  ```
      */
-    template <class Packet = dart::basic_packet<std::shared_ptr>, class T>
-    decltype(auto) cast(T&& val) {
-      return detail::incoming_caster<detail::normalize_t<T>>::template cast<Packet>(std::forward<T>(val));
+    template <class To = dart::basic_packet<std::shared_ptr>, class From>
+    decltype(auto) cast(From&& val) {
+      using to_cat = detail::normalize_t<To>;
+      using from_cat = detail::normalize_t<From>;
+      return detail::cast_dispatch<To>(from_cat {}, to_cat {}, std::forward<From>(val));
     }
 
     /**
