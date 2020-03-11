@@ -215,6 +215,11 @@ matrix:
       env:
         USE_GSL_LITE: true
         IS_SLOW_AS_MOLASSES: true
+    - os: osx
+      compiler: clang
+      osx_image: xcode11.3
+      env:
+        IS_SLOW_AS_MOLASSES: true
 
 # Build and run.
 script:
