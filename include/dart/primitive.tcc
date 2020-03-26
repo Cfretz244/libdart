@@ -108,6 +108,18 @@ namespace dart {
   namespace detail {
 
     template <class T>
+    template <bool silent>
+    bool primitive<T>::is_valid(size_t bytes) const noexcept(silent) {
+      // With a primitive value, there's only the header, so check to ensure
+      // it's within bounds
+      if (bytes < header_len) {
+        if (silent) return false;
+        else throw validation_error("Serialized primitive value is truncated");
+      }
+      return true;
+    }
+
+    template <class T>
     size_t primitive<T>::get_sizeof() const noexcept {
       return sizeof(T);
     }

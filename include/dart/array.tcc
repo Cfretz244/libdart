@@ -300,6 +300,52 @@ namespace dart {
     }
 
     template <template <class> class RefCount>
+    template <bool silent>
+    bool array<RefCount>::is_valid(size_t bytes) const noexcept(silent) {
+      // Check if we even have enough space left for the array header.
+      if (bytes < header_len) {
+        if (silent) return false;
+        else throw validation_error("Serialized array is truncated");
+      }
+
+      // We now know it's safe to access the array length, but it could still be garbage,
+      // so check if the array claims to be larger than our total buffer.
+      // After this check, all other length checks will use the length reported by the array
+      // itself to validate internal consistency
+      // Signed comparison warnings are the actual worst
+      auto total_size = static_cast<std::ptrdiff_t>(get_sizeof());
+      if (total_size > static_cast<ssize_t>(bytes)) {
+        if (silent) return false;
+        else throw validation_error("Serialized array length is out of bounds");
+      }
+
+      // The array reports a reasonable length,
+      // so now check if the vtable is within bounds.
+      auto* vtable_end = raw_vtable() + (size() * sizeof(array_entry));
+      if (vtable_end - DART_FROM_THIS > total_size) {
+        if (silent) return false;
+        else throw validation_error("Serialized array vtable length is out of bounds");
+      }
+
+      // We now know the entire vtable is within bounds,
+      // so iterate over it and check all contained children.
+      for (auto raw_val : *this) {
+        // Load the base address of the value and verify that it's within bounds.
+        auto val_offset = raw_val.buffer - DART_FROM_THIS;
+        if (val_offset > total_size) {
+          if (silent) return false;
+          else throw validation_error("Serialized array value offset is out of bounds");
+        }
+
+        // We now know that at least up tot he base of the value is within bounds, so recurse on the value.
+        // If the buffer validation routine returns false, it means we're not throwing errors.
+        auto valid_val = valid_buffer<silent, RefCount>(raw_val, total_size - val_offset);
+        if (!valid_val) return false;
+      }
+      return true;
+    }
+
+    template <template <class> class RefCount>
     size_t array<RefCount>::size() const noexcept {
       return elems;
     }
@@ -359,6 +405,16 @@ namespace dart {
     array_entry const* array<RefCount>::vtable() const noexcept {
       auto* base = DART_FROM_THIS + sizeof(bytes) + sizeof(elems);
       return shim::launder(reinterpret_cast<array_entry const*>(base));
+    }
+
+    template <template <class> class RefCount>
+    gsl::byte* array<RefCount>::raw_vtable() noexcept {
+      return DART_FROM_THIS_MUT + sizeof(bytes) + sizeof(elems);
+    }
+
+    template <template <class> class RefCount>
+    gsl::byte const* array<RefCount>::raw_vtable() const noexcept {
+      return DART_FROM_THIS + sizeof(bytes) + sizeof(elems);
     }
 
   }

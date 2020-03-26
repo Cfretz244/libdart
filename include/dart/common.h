@@ -102,6 +102,10 @@ namespace dart {
     parse_error(char const* msg) : runtime_error(msg) {}
   };
 
+  struct validation_error : std::runtime_error {
+    validation_error(char const* msg) : runtime_error(msg) {}
+  };
+
   namespace detail {
 
     template <class T>
@@ -646,6 +650,9 @@ namespace dart {
 
         /*----- Public API -----*/
 
+        template <bool silent>
+        bool is_valid(size_t bytes) const noexcept(silent);
+
         size_t size() const noexcept;
         size_t get_sizeof() const noexcept;
 
@@ -680,10 +687,15 @@ namespace dart {
         object_entry* vtable() noexcept;
         object_entry const* vtable() const noexcept;
 
+        gsl::byte* raw_vtable() noexcept;
+        gsl::byte const* raw_vtable() const noexcept;
+
         /*----- Private Members -----*/
 
         alignas(4) little_order<uint32_t> bytes;
         alignas(4) little_order<uint32_t> elems;
+
+        static constexpr auto header_len = sizeof(bytes) + sizeof(elems);
 
     };
     static_assert(std::is_standard_layout<object<std::shared_ptr>>::value, "dart library is misconfigured");
@@ -722,6 +734,9 @@ namespace dart {
 
         /*----- Public API -----*/
 
+        template <bool silent>
+        bool is_valid(size_t bytes) const noexcept(silent);
+
         size_t size() const noexcept;
         size_t get_sizeof() const noexcept;
 
@@ -746,10 +761,15 @@ namespace dart {
         array_entry* vtable() noexcept;
         array_entry const* vtable() const noexcept;
 
+        gsl::byte* raw_vtable() noexcept;
+        gsl::byte const* raw_vtable() const noexcept;
+
         /*----- Private Members -----*/
 
         alignas(4) little_order<uint32_t> bytes;
         alignas(4) little_order<uint32_t> elems;
+
+        static constexpr auto header_len = sizeof(bytes) + sizeof(elems);
 
     };
     static_assert(std::is_standard_layout<array<std::shared_ptr>>::value, "dart library is misconfigured");
@@ -787,6 +807,9 @@ namespace dart {
 
         /*----- Public API -----*/
 
+        template <bool silent>
+        bool is_valid(size_t bytes) const noexcept(silent);
+
         size_t size() const noexcept;
         size_t get_sizeof() const noexcept;
 
@@ -808,6 +831,8 @@ namespace dart {
         /*----- Private Members -----*/
 
         alignas(alignment) little_order<size_type> len;
+
+        static constexpr auto header_len = sizeof(len);
 
     };
     using string = basic_string<uint16_t>;
@@ -843,6 +868,9 @@ namespace dart {
 
         /*----- Public API -----*/
 
+        template <bool silent>
+        bool is_valid(size_t bytes) const noexcept(silent);
+
         size_t get_sizeof() const noexcept;
 
         T get_data() const noexcept;
@@ -858,6 +886,8 @@ namespace dart {
         /*----- Private Members -----*/
 
         alignas(alignment) little_order<T> data;
+
+        static constexpr auto header_len = sizeof(data);
 
     };
     static_assert(std::is_standard_layout<primitive<int>>::value, "dart library is misconfigured");
@@ -1240,6 +1270,15 @@ namespace dart {
       } else {
         return 0;
       }
+    }
+
+    template <bool silent, template <class> class RefCount>
+    bool valid_buffer(raw_element elem, size_t bytes) noexcept(silent) {
+      // Null is a special case because it occupies zero space in the network buffer
+      if (elem.type == raw_type::null) return true;
+
+      // Call through to our implementation
+      return generic_deref<RefCount>([=] (auto& v) { return v.template is_valid<silent>(bytes); }, elem);
     }
 
     template <template <class> class RefCount>

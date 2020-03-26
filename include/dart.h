@@ -13888,6 +13888,11 @@ namespace dart {
 
   /*----- Global Free Functions -----*/
 
+  inline bool validate(gsl::span<gsl::byte const> buffer) noexcept {
+    detail::raw_element raw {detail::raw_type::object, buffer.data()};
+    return detail::valid_buffer<true, std::shared_ptr>(raw, buffer.size());
+  }
+
 #ifdef DART_USE_SAJSON
   /**
    *  @brief

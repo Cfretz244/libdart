@@ -54,6 +54,33 @@ namespace dart {
     }
 
     template <class SizeType>
+    template <bool silent>
+    bool basic_string<SizeType>::is_valid(size_t bytes) const noexcept(silent) {
+      // Check if we even have enough space left for the string header
+      if (bytes < header_len) {
+        if (silent) return false;
+        else throw validation_error("Serialized string is truncated");
+      }
+
+      // We now know it's safe to access the string length, but it could still be garbage,
+      // so check if the string claims to be larger than the total buffer.
+      auto total_size = get_sizeof();
+      if (total_size > bytes) {
+        if (silent) return false;
+        else throw validation_error("Serialized string length is out of bounds");
+      }
+
+      // We now know that the total string is within bounds, but it could still be garbage,
+      // so, since we can't generically calculate if the string contents are "correct",
+      // use the existence of the null terminator as a proxy for lack of corruption.
+      if (data()[size()] != '\0') {
+        if (silent) return false;
+        else throw validation_error("Serialized string is corrupted, internal consistency checks failed");
+      }
+      return true;
+    }
+
+    template <class SizeType>
     size_t basic_string<SizeType>::size() const noexcept {
       return len;
     }
