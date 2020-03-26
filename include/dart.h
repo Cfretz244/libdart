@@ -6924,6 +6924,31 @@ namespace dart {
         >
       >
       static basic_heap from_json(shim::string_view json);
+
+      /**
+       *  @brief
+       *  Function constructs an optionally finalized packet to represent the given JSON string.
+       *
+       *  @details
+       *  Parsing is based on RapidJSON, and so exposes the same parsing customization points as
+       *  RapidJSON.
+       *  If your JSON has embedded comments in it, NaN or +/-Infinity values, or trailing commas,
+       *  you can parse in the following ways:
+       *  ```
+       *  auto json = input.read();
+       *  auto comments = dart::heap::from_json<dart::parse_comments>(json);
+       *  auto nan_inf = dart::heap::from_json<dart::parse_nan>(json);
+       *  auto commas = dart::heap::from_json<dart::parse_trailing_commas>(json);
+       *  auto all_of_it = dart::heap::from_json<dart::parse_permissive>(json);
+       *  ```
+       */
+      template <unsigned parse_stack_size = default_parse_stack_size,
+               bool enabled = refcount::is_owner<RefCount>::value, class EnableIf =
+        std::enable_if_t<
+          enabled
+        >
+      >
+      static basic_heap parse(shim::string_view json);
 #elif DART_HAS_RAPIDJSON
       /**
        *  @brief
@@ -6949,6 +6974,31 @@ namespace dart {
         >
       >
       static basic_heap from_json(shim::string_view json);
+
+      /**
+       *  @brief
+       *  Function constructs an optionally finalized packet to represent the given JSON string.
+       *
+       *  @details
+       *  Parsing is based on RapidJSON, and so exposes the same parsing customization points as
+       *  RapidJSON.
+       *  If your JSON has embedded comments in it, NaN or +/-Infinity values, or trailing commas,
+       *  you can parse in the following ways:
+       *  ```
+       *  auto json = input.read();
+       *  auto comments = dart::heap::from_json<dart::parse_comments>(json);
+       *  auto nan_inf = dart::heap::from_json<dart::parse_nan>(json);
+       *  auto commas = dart::heap::from_json<dart::parse_trailing_commas>(json);
+       *  auto all_of_it = dart::heap::from_json<dart::parse_permissive>(json);
+       *  ```
+       */
+      template <unsigned flags = parse_default,
+               bool enabled = refcount::is_owner<RefCount>::value, class EnableIf =
+        std::enable_if_t<
+          enabled
+        >
+      >
+      static basic_heap parse(shim::string_view json);
 #endif
 
 #if DART_HAS_RAPIDJSON
@@ -9180,6 +9230,31 @@ namespace dart {
         >
       >
       static basic_buffer from_json(shim::string_view json);
+
+      /**
+       *  @brief
+       *  Function constructs an optionally finalized packet to represent the given JSON string.
+       *
+       *  @details
+       *  Parsing is based on RapidJSON, and so exposes the same parsing customization points as
+       *  RapidJSON.
+       *  If your JSON has embedded comments in it, NaN or +/-Infinity values, or trailing commas,
+       *  you can parse in the following ways:
+       *  ```
+       *  auto json = input.read();
+       *  auto comments = dart::heap::from_json<dart::parse_comments>(json);
+       *  auto nan_inf = dart::heap::from_json<dart::parse_nan>(json);
+       *  auto commas = dart::heap::from_json<dart::parse_trailing_commas>(json);
+       *  auto all_of_it = dart::heap::from_json<dart::parse_permissive>(json);
+       *  ```
+       */
+      template <unsigned parse_stack_size = default_parse_stack_size,
+               bool enabled = refcount::is_owner<RefCount>::value, class EnableIf =
+        std::enable_if_t<
+          enabled
+        >
+      >
+      static basic_buffer parse(shim::string_view json);
 #elif DART_HAS_RAPIDJSON
       /**
        *  @brief
@@ -9205,6 +9280,31 @@ namespace dart {
         >
       >
       static basic_buffer from_json(shim::string_view json);
+
+      /**
+       *  @brief
+       *  Function constructs an optionally finalized packet to represent the given JSON string.
+       *
+       *  @details
+       *  Parsing is based on RapidJSON, and so exposes the same parsing customization points as
+       *  RapidJSON.
+       *  If your JSON has embedded comments in it, NaN or +/-Infinity values, or trailing commas,
+       *  you can parse in the following ways:
+       *  ```
+       *  auto json = input.read();
+       *  auto comments = dart::buffer::from_json<dart::parse_comments>(json);
+       *  auto nan_inf = dart::buffer::from_json<dart::parse_nan>(json);
+       *  auto commas = dart::buffer::from_json<dart::parse_trailing_commas>(json);
+       *  auto all_of_it = dart::buffer::from_json<dart::parse_permissive>(json);
+       *  ```
+       */
+      template <unsigned flags = parse_default,
+               bool enabled = refcount::is_owner<RefCount>::value, class EnableIf =
+        std::enable_if_t<
+          enabled
+        >
+      >
+      static basic_buffer parse(shim::string_view json);
 #endif
 
 #if DART_HAS_RAPIDJSON
@@ -12286,6 +12386,31 @@ namespace dart {
         >
       >
       static basic_packet from_json(shim::string_view json, bool finalized = true);
+
+      /**
+       *  @brief
+       *  Function constructs an optionally finalized packet to represent the given JSON string.
+       *
+       *  @details
+       *  Parsing is based on RapidJSON, and so exposes the same parsing customization points as
+       *  RapidJSON.
+       *  If your JSON has embedded comments in it, NaN or +/-Infinity values, or trailing commas,
+       *  you can parse in the following ways:
+       *  ```
+       *  auto json = input.read();
+       *  auto comments = dart::heap::from_json<dart::parse_comments>(json);
+       *  auto nan_inf = dart::heap::from_json<dart::parse_nan>(json);
+       *  auto commas = dart::heap::from_json<dart::parse_trailing_commas>(json);
+       *  auto all_of_it = dart::heap::from_json<dart::parse_permissive>(json);
+       *  ```
+       */
+      template <unsigned parse_stack_size = default_parse_stack_size,
+               bool enabled = refcount::is_owner<RefCount>::value, class EnableIf =
+        std::enable_if_t<
+          enabled
+        >
+      >
+      static basic_packet parse(shim::string_view json, bool finalized = true);
 #elif DART_HAS_RAPIDJSON
       /**
        *  @brief
@@ -12311,6 +12436,31 @@ namespace dart {
         >
       >
       static basic_packet from_json(shim::string_view json, bool finalize = false);
+
+      /**
+       *  @brief
+       *  Function constructs an optionally finalized packet to represent the given JSON string.
+       *
+       *  @details
+       *  Parsing is based on RapidJSON, and so exposes the same parsing customization points as
+       *  RapidJSON.
+       *  If your JSON has embedded comments in it, NaN or +/-Infinity values, or trailing commas,
+       *  you can parse in the following ways:
+       *  ```
+       *  auto json = input.read();
+       *  auto comments = dart::packet::from_json<dart::parse_comments>(json);
+       *  auto nan_inf = dart::packet::from_json<dart::parse_nan>(json);
+       *  auto commas = dart::packet::from_json<dart::parse_trailing_commas>(json);
+       *  auto all_of_it = dart::packet::from_json<dart::parse_permissive>(json);
+       *  ```
+       */
+      template <unsigned flags = parse_default,
+               bool enabled = refcount::is_owner<RefCount>::value, class EnableIf =
+        std::enable_if_t<
+          enabled
+        >
+      >
+      static basic_packet parse(shim::string_view json, bool finalize = false);
 #endif
 
 #if DART_HAS_RAPIDJSON
