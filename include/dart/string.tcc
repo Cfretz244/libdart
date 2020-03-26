@@ -25,6 +25,12 @@ namespace dart {
   }
 
   template <class String>
+  char basic_string<String>::operator [](size_type idx) const noexcept {
+    if (idx >= size()) return '\0';
+    else return str()[idx];
+  }
+
+  template <class String>
   char const* basic_string<String>::str() const noexcept {
     return val.str();
   }

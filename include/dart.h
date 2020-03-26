@@ -3581,6 +3581,16 @@ namespace dart {
 
       /**
        *  @brief
+       *  Subscript operator.
+       *
+       *  @details
+       *  Returns the character at the given index.
+       *  Operator returns a temporary character, and does not allow writes
+       */
+      char operator [](size_type idx) const noexcept;
+
+      /**
+       *  @brief
        *  Dereference operator.
        *
        *  @details

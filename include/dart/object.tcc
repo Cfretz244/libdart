@@ -536,16 +536,26 @@ namespace dart {
         else throw validation_error("Serialized object vtable length is out of bounds");
       }
 
+      // We now know that the vtable is fully within bounds, but it could still be full of crap
+      // Check that every element in the vtable has a valid type
+      for (auto i = 0; i < size(); ++i) {
+        if (!valid_type(vtable()[i].get_type())) {
+          if (silent) return false;
+          else throw validation_error("Serialized object value is of no known type");
+        }
+      }
+
       // We now know the entire vtable is within bounds,
       // so iterate over it and check all contained children.
       auto key_it = key_begin(), val_it = begin();
-      while (key_it != key_end()) {
+      while (val_it != end()) {
         // We know the whole vtable is within bounds, but it could still specify offsets that aren't,
         // so load the base address of the key and verify that it's within bounds
         // We compare against the size of the object here as we already know it's within bounds
         auto raw_key = *key_it;
         auto key_offset = raw_key.buffer - DART_FROM_THIS;
         if (key_offset > total_size) {
+          // Key offset is out of bounds
           if (silent) return false;
           else throw validation_error("Serialized object key offset is out of bounds");
         }

@@ -992,6 +992,26 @@ namespace dart {
       }
     }
 
+    inline bool valid_type(raw_type type) noexcept {
+      switch (type) {
+        case raw_type::object:
+        case raw_type::array:
+        case raw_type::string:
+        case raw_type::small_string:
+        case raw_type::big_string:
+        case raw_type::short_integer:
+        case raw_type::integer:
+        case raw_type::long_integer:
+        case raw_type::decimal:
+        case raw_type::long_decimal:
+        case raw_type::boolean:
+        case raw_type::null:
+          return true;
+        default:
+          return false;
+      }
+    }
+
     /**
      *  @brief
      *  Function provides a "safe" bridge between the high level
@@ -1275,7 +1295,10 @@ namespace dart {
     template <bool silent, template <class> class RefCount>
     bool valid_buffer(raw_element elem, size_t bytes) noexcept(silent) {
       // Null is a special case because it occupies zero space in the network buffer
+      // Check if the given element has a valid type.
+      // If we're validating against corrupted garbage it likely won't
       if (elem.type == raw_type::null) return true;
+      else if (!valid_type(elem.type)) return false;
 
       // Call through to our implementation
       return generic_deref<RefCount>([=] (auto& v) { return v.template is_valid<silent>(bytes); }, elem);

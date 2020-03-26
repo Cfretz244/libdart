@@ -327,6 +327,15 @@ namespace dart {
         else throw validation_error("Serialized array vtable length is out of bounds");
       }
 
+      // We now know that the vtable is fully within bounds, but it could still be full of crap
+      // Check that every element in the vtable has a valid type
+      for (auto i = 0; i < size(); ++i) {
+        if (!valid_type(vtable()[i].get_type())) {
+          if (silent) return false;
+          else throw validation_error("Serialized object value is of no known type");
+        }
+      }
+
       // We now know the entire vtable is within bounds,
       // so iterate over it and check all contained children.
       for (auto raw_val : *this) {
