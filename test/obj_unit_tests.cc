@@ -928,7 +928,7 @@ SCENARIO("objects can optionally access non-existent keys with a fallback", "[ob
 
       auto obj = pkt::make_object();
       DYNAMIC_WHEN("we attempt to optionally access a non-existent key", idx) {
-        auto key = dart::conversion_helper<pkt>("nope"_dart);
+        auto key = dart::conversion_helper<pkt>(dart::packet::make_string("nope"));
         auto opt_one = obj.get_or("nope", 1);
         auto opt_two = obj.get_or(key, 1.0);
         auto opt_three = obj.get_or("nope", "not here");
@@ -945,7 +945,7 @@ SCENARIO("objects can optionally access non-existent keys with a fallback", "[ob
       }
 
       DYNAMIC_WHEN("we attempt to optionally access a non-existent key on a temporary", idx) {
-        auto key = dart::conversion_helper<pkt>("double_nope"_dart);
+        auto key = dart::conversion_helper<pkt>(dart::packet::make_string("double_nope"));
         auto opt_one = obj["nope"].get_or("double_nope", 1);
         auto opt_two = obj["nope"].get_or(key, 1.0);
         auto opt_three = obj["nope"].get_or("double_nope", "not here");
@@ -963,7 +963,7 @@ SCENARIO("objects can optionally access non-existent keys with a fallback", "[ob
 
       DYNAMIC_WHEN("the object is finalized", idx) {
         obj.finalize();
-        auto key = dart::conversion_helper<pkt>("nope"_dart);
+        auto key = dart::conversion_helper<pkt>(dart::packet::make_string("nope"));
         auto opt_one = obj.get_or("nope", 1);
         auto opt_two = obj.get_or(key, 1.0);
         auto opt_three = obj.get_or("nope", "not here");

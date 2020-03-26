@@ -13880,9 +13880,9 @@ namespace dart {
 
   inline namespace literals {
 
-    inline packet operator ""_dart(char const* val, size_t len);
-    inline packet operator ""_dart(unsigned long long val);
-    inline packet operator ""_dart(long double val);
+    inline string operator ""_dart(char const* val, size_t len);
+    inline number operator ""_dart(unsigned long long val);
+    inline number operator ""_dart(long double val);
 
   }
 
