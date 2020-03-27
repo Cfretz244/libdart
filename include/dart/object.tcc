@@ -562,6 +562,9 @@ namespace dart {
         } else if (raw_key.buffer <= prev) {
           if (silent) return false;
           else throw validation_error("Serialized object key contained a negative or cyclic offset");
+        } else if (align_pointer<RefCount>(raw_key.buffer, raw_key.type) != raw_key.buffer) {
+          if (silent) return false;
+          else throw validation_error("Serialized object key offset does not meet alignment requirements");
         }
         prev = raw_key.buffer;
 
@@ -582,6 +585,9 @@ namespace dart {
         } else if (raw_val.buffer <= prev) {
           if (silent) return false;
           else throw validation_error("Serialized object value contained a negative or cyclic offset");
+        } else if (align_pointer<RefCount>(raw_val.buffer, raw_val.type) != raw_val.buffer) {
+          if (silent) return false;
+          else throw validation_error("Serialized object value offset does not meet alignment requirements");
         }
         prev = raw_val.buffer;
 

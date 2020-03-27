@@ -348,6 +348,9 @@ namespace dart {
         } else if (raw_val.buffer <= prev) {
           if (silent) return false;
           else throw validation_error("Serialized array value contained a negative or cyclic offset");
+        } else if (align_pointer<RefCount>(raw_val.buffer, raw_val.type) != raw_val.buffer) {
+          if (silent) return false;
+          else throw validation_error("Serialized array value offset does not meet alignment requirements");
         }
         prev = raw_val.buffer;
 
