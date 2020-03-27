@@ -1,3 +1,7 @@
+/*----- System Includes -----*/
+
+#include <cstdio>
+
 /*----- Local Includes -----*/
 
 #include "dart_tests.h"
@@ -7,6 +11,7 @@
 // This global exists to try to force the compiler to actually
 // run the explore function, as otherwise it doesn't really have
 // any side-effects
+constexpr size_t input_len = 128;
 constexpr size_t output_len = 1024;
 thread_local char volatile* dummy_output;
 
@@ -68,3 +73,23 @@ extern "C" {
   }
 
 }
+
+#ifdef DART_USING_AFL
+
+int main() {
+  // Reopen stdin in binary mode
+  std::freopen(nullptr, "rb", stdin);
+
+  // Read from stdin until we hit EOF
+  size_t len;
+  std::vector<char> storage;
+  std::array<char, input_len> buff;
+  while ((len = std::fread(buff.data(), sizeof(char), buff.size(), stdin)) > 0) {
+    storage.insert(storage.end(), buff.data(), buff.data() + len);
+  }
+
+  // Pass to our fuzzer function.
+  LLVMFuzzerTestOneInput(reinterpret_cast<gsl::byte const*>(storage.data()), storage.size());
+}
+
+#endif
