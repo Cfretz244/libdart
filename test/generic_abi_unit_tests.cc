@@ -2278,6 +2278,7 @@ SCENARIO("finalized objects can be checked for validity", "[generic abi unit]") 
 
     WHEN("we create our own buffer") {
       void* buff = malloc(custom_len);
+      auto guard = make_scope_guard([&] { free(buff); });
       std::memset(buff, 0, custom_len);
       THEN("it fails to validate") {
         REQUIRE(!dart_buffer_is_valid(buff, custom_len));
