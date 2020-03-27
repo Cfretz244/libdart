@@ -65,6 +65,20 @@ install:
 matrix:
   include:
     - env:
+        VERSION: 7
+        FUZZ: true
+      os: linux
+      compiler: clang
+      addons:
+        apt:
+          sources:
+            - llvm-toolchain-xenial-7
+            - ubuntu-toolchain-r-test
+          packages:
+            - rapidjson-dev
+            - clang-7
+            - g++-7
+    - env:
         VERSION: 5
         USE_GSL_LITE: true
       os: linux
@@ -198,20 +212,6 @@ matrix:
             - rapidjson-dev
             - clang-7
             - g++-7
-    - env:
-        VERSION: 7
-        FUZZ: true
-      os: linux
-      compiler: clang
-      addons:
-        apt:
-          sources:
-            - llvm-toolchain-xenial-7
-            - ubuntu-toolchain-r-test
-          packages:
-            - rapidjson-dev
-            - clang-7
-            - g++-7
     - os: osx
       compiler: clang
       osx_image: xcode8.3
@@ -242,7 +242,7 @@ script:
       cd test
       clang++ -std=c++14 -g -O3 -fsanitize=fuzzer,address -o fuzz fuzz_tests.cc
       mkdir discoveries
-      timeout 1200 ./fuzz fuzzer_input discoveries
+      timeout --preserve-status 1200 ./fuzz fuzzer_input discoveries
     else
       mkdir build
       cd build
