@@ -338,15 +338,20 @@ namespace dart {
 
       // We now know the entire vtable is within bounds,
       // so iterate over it and check all contained children.
+      void const* prev = this;
       for (auto raw_val : *this) {
         // Load the base address of the value and verify that it's within bounds.
         auto val_offset = raw_val.buffer - DART_FROM_THIS;
         if (val_offset > total_size) {
           if (silent) return false;
           else throw validation_error("Serialized array value offset is out of bounds");
+        } else if (raw_val.buffer <= prev) {
+          if (silent) return false;
+          else throw validation_error("Serialized array value contained a negative or cyclic offset");
         }
+        prev = raw_val.buffer;
 
-        // We now know that at least up tot he base of the value is within bounds, so recurse on the value.
+        // We now know that at least up to the base of the value is within bounds, so recurse on the value.
         // If the buffer validation routine returns false, it means we're not throwing errors.
         auto valid_val = valid_buffer<silent, RefCount>(raw_val, total_size - val_offset);
         if (!valid_val) return false;

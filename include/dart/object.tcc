@@ -547,6 +547,7 @@ namespace dart {
 
       // We now know the entire vtable is within bounds,
       // so iterate over it and check all contained children.
+      void const* prev = this;
       auto key_it = key_begin(), val_it = begin();
       while (val_it != end()) {
         // We know the whole vtable is within bounds, but it could still specify offsets that aren't,
@@ -558,7 +559,11 @@ namespace dart {
           // Key offset is out of bounds
           if (silent) return false;
           else throw validation_error("Serialized object key offset is out of bounds");
+        } else if (raw_key.buffer <= prev) {
+          if (silent) return false;
+          else throw validation_error("Serialized object key contained a negative or cyclic offset");
         }
+        prev = raw_key.buffer;
 
         // We now know that at least up to the base of the key is within bounds, so recurse on the key.
         // If the buffer validation routine returns false, it means we're not throwing errors.
@@ -574,7 +579,11 @@ namespace dart {
         if (val_offset > total_size) {
           if (silent) return false;
           else throw validation_error("Serialized object value offset is out of bounds");
+        } else if (raw_val.buffer <= prev) {
+          if (silent) return false;
+          else throw validation_error("Serialized object value contained a negative or cyclic offset");
         }
+        prev = raw_val.buffer;
 
         // We now know that at least up to the base of the value is within bounds, so recurse on the value.
         auto valid_val = valid_buffer<silent, RefCount>(raw_val, total_size - val_offset);
