@@ -68,7 +68,7 @@ extern "C" {
       explore(buff);
     }
 
-    delete dummy_output;
+    delete[] dummy_output;
     return 0;
   }
 
