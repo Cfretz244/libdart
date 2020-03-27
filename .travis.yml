@@ -256,7 +256,6 @@ script:
       make VERBOSE=1
       kill -9 $KEEPALIVE_PID
       ctest --output-on-failure
-      cd ..
     fi
 
 after_success:
