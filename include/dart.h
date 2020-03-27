@@ -13898,9 +13898,306 @@ namespace dart {
 
   /*----- Global Free Functions -----*/
 
-  inline bool validate(gsl::span<gsl::byte const> buffer) noexcept {
+  /**
+   *  @brief
+   *  Function provides a way to check if an arbitrary buffer of bytes
+   *  can be successfully interpreted as a Dart buffer.
+   *
+   *  @details
+   *  Function validates whether the given network buffer is well formed.
+   *  If the function returns true it does NOT mean that the given buffer
+   *  definitely wasn't corrupted in any way, just that the whole buffer
+   *  is safely traversable, all necessary invariants hold, and it can be
+   *  used without worry of undefined behavior.
+   *
+   *  @remarks
+   *  Function is largely intended to be used when the buffer in question
+   *  came from an untrusted source.
+   */
+  inline bool is_valid(gsl::span<gsl::byte const> buffer) noexcept {
     detail::raw_element raw {detail::raw_type::object, buffer.data()};
     return detail::valid_buffer<true, std::shared_ptr>(raw, buffer.size());
+  }
+
+  /**
+   *  @brief
+   *  Function provides a way to check if an arbitrary buffer of bytes
+   *  can be successfully interpreted as a Dart buffer.
+   *
+   *  @details
+   *  Function validates whether the given network buffer is well formed.
+   *  If the function returns true it does NOT mean that the given buffer
+   *  definitely wasn't corrupted in any way, just that the whole buffer
+   *  is safely traversable, all necessary invariants hold, and it can be
+   *  used without worry of undefined behavior.
+   *
+   *  @remarks
+   *  Function is largely intended to be used when the buffer in question
+   *  came from an untrusted source.
+   */
+  inline bool is_valid(gsl::byte const* buffer, size_t len) noexcept {
+    detail::raw_element raw {detail::raw_type::object, buffer};
+    return detail::valid_buffer<true, std::shared_ptr>(raw, len);
+  }
+
+  /**
+   *  @brief
+   *  Function provides a way to check if an arbitrary buffer of bytes
+   *  can be successfully interpreted as a Dart buffer.
+   *
+   *  @details
+   *  Function validates whether the given network buffer is well formed.
+   *  If the function returns true it does NOT mean that the given buffer
+   *  definitely wasn't corrupted in any way, just that the whole buffer
+   *  is safely traversable, all necessary invariants hold, and it can be
+   *  used without worry of undefined behavior.
+   *
+   *  @remarks
+   *  Function is largely intended to be used when the buffer in question
+   *  came from an untrusted source.
+   */
+  template <class Del>
+  bool is_valid(std::unique_ptr<gsl::byte, Del> const& buffer, size_t len) noexcept {
+    detail::raw_element raw {detail::raw_type::object, buffer.get()};
+    return detail::valid_buffer<true, std::shared_ptr>(raw, len);
+  }
+
+  /**
+   *  @brief
+   *  Function provides a way to check if an arbitrary buffer of bytes
+   *  can be successfully interpreted as a Dart buffer.
+   *
+   *  @details
+   *  Function validates whether the given network buffer is well formed.
+   *  If the function returns true it does NOT mean that the given buffer
+   *  definitely wasn't corrupted in any way, just that the whole buffer
+   *  is safely traversable, all necessary invariants hold, and it can be
+   *  used without worry of undefined behavior.
+   *
+   *  @remarks
+   *  Function is largely intended to be used when the buffer in question
+   *  came from an untrusted source.
+   */
+  template <class Del>
+  bool is_valid(std::unique_ptr<gsl::byte[], Del> const& buffer, size_t len) noexcept {
+    detail::raw_element raw {detail::raw_type::object, buffer.get()};
+    return detail::valid_buffer<true, std::shared_ptr>(raw, len);
+  }
+
+  /**
+   *  @brief
+   *  Function provides a way to check if an arbitrary buffer of bytes
+   *  can be successfully interpreted as a Dart buffer.
+   *
+   *  @details
+   *  Function validates whether the given network buffer is well formed.
+   *  If the function returns true it does NOT mean that the given buffer
+   *  definitely wasn't corrupted in any way, just that the whole buffer
+   *  is safely traversable, all necessary invariants hold, and it can be
+   *  used without worry of undefined behavior.
+   *
+   *  @remarks
+   *  Function is largely intended to be used when the buffer in question
+   *  came from an untrusted source.
+   */
+  template <class Del>
+  bool is_valid(std::unique_ptr<gsl::byte const, Del> const& buffer, size_t len) noexcept {
+    detail::raw_element raw {detail::raw_type::object, buffer.get()};
+    return detail::valid_buffer<true, std::shared_ptr>(raw, len);
+  }
+
+  /**
+   *  @brief
+   *  Function provides a way to check if an arbitrary buffer of bytes
+   *  can be successfully interpreted as a Dart buffer.
+   *
+   *  @details
+   *  Function validates whether the given network buffer is well formed.
+   *  If the function returns true it does NOT mean that the given buffer
+   *  definitely wasn't corrupted in any way, just that the whole buffer
+   *  is safely traversable, all necessary invariants hold, and it can be
+   *  used without worry of undefined behavior.
+   *
+   *  @remarks
+   *  Function is largely intended to be used when the buffer in question
+   *  came from an untrusted source.
+   */
+  template <class Del>
+  bool is_valid(std::unique_ptr<gsl::byte const[], Del> const& buffer, size_t len) noexcept {
+    detail::raw_element raw {detail::raw_type::object, buffer.get()};
+    return detail::valid_buffer<true, std::shared_ptr>(raw, len);
+  }
+
+  /**
+   *  @brief
+   *  Function provides a way to check if an arbitrary buffer of bytes
+   *  can be successfully interpreted as a Dart buffer.
+   *
+   *  @details
+   *  Function validates whether the given network buffer is well formed.
+   *  If the function returns true it does NOT mean that the given buffer
+   *  definitely wasn't corrupted in any way, just that the whole buffer
+   *  is safely traversable, all necessary invariants hold, and it can be
+   *  used without worry of undefined behavior.
+   *
+   *  @remarks
+   *  Function is largely intended to be used when the buffer in question
+   *  came from an untrusted source.
+   */
+  inline bool is_valid(std::shared_ptr<gsl::byte const> const& buffer, size_t len) noexcept {
+    detail::raw_element raw {detail::raw_type::object, buffer.get()};
+    return detail::valid_buffer<true, std::shared_ptr>(raw, len);
+  }
+
+  /**
+   *  @brief
+   *  Function provides a way to check if an arbitrary buffer of bytes
+   *  can be successfully interpreted as a Dart buffer.
+   *
+   *  @details
+   *  Function validates whether the given network buffer is well formed.
+   *  If the function returns true it does NOT mean that the given buffer
+   *  definitely wasn't corrupted in any way, just that the whole buffer
+   *  is safely traversable, all necessary invariants hold, and it can be
+   *  used without worry of undefined behavior.
+   *
+   *  @remarks
+   *  Function is largely intended to be used when the buffer in question
+   *  came from an untrusted source.
+   */
+  inline void validate(gsl::span<gsl::byte const> buffer) {
+    detail::raw_element raw {detail::raw_type::object, buffer.data()};
+    detail::valid_buffer<false, std::shared_ptr>(raw, buffer.size());
+  }
+
+  /**
+   *  @brief
+   *  Function provides a way to check if an arbitrary buffer of bytes
+   *  can be successfully interpreted as a Dart buffer.
+   *
+   *  @details
+   *  Function validates whether the given network buffer is well formed.
+   *  If the function returns true it does NOT mean that the given buffer
+   *  definitely wasn't corrupted in any way, just that the whole buffer
+   *  is safely traversable, all necessary invariants hold, and it can be
+   *  used without worry of undefined behavior.
+   *
+   *  @remarks
+   *  Function is largely intended to be used when the buffer in question
+   *  came from an untrusted source.
+   */
+  inline void validate(gsl::byte const* buffer, size_t len) {
+    detail::raw_element raw {detail::raw_type::object, buffer};
+    detail::valid_buffer<false, std::shared_ptr>(raw, len);
+  }
+
+  /**
+   *  @brief
+   *  Function provides a way to check if an arbitrary buffer of bytes
+   *  can be successfully interpreted as a Dart buffer.
+   *
+   *  @details
+   *  Function validates whether the given network buffer is well formed.
+   *  If the function returns true it does NOT mean that the given buffer
+   *  definitely wasn't corrupted in any way, just that the whole buffer
+   *  is safely traversable, all necessary invariants hold, and it can be
+   *  used without worry of undefined behavior.
+   *
+   *  @remarks
+   *  Function is largely intended to be used when the buffer in question
+   *  came from an untrusted source.
+   */
+  template <class Del>
+  void validate(std::unique_ptr<gsl::byte, Del> const& buffer, size_t len) {
+    detail::raw_element raw {detail::raw_type::object, buffer.get()};
+    detail::valid_buffer<false, std::shared_ptr>(raw, len);
+  }
+
+  /**
+   *  @brief
+   *  Function provides a way to check if an arbitrary buffer of bytes
+   *  can be successfully interpreted as a Dart buffer.
+   *
+   *  @details
+   *  Function validates whether the given network buffer is well formed.
+   *  If the function returns true it does NOT mean that the given buffer
+   *  definitely wasn't corrupted in any way, just that the whole buffer
+   *  is safely traversable, all necessary invariants hold, and it can be
+   *  used without worry of undefined behavior.
+   *
+   *  @remarks
+   *  Function is largely intended to be used when the buffer in question
+   *  came from an untrusted source.
+   */
+  template <class Del>
+  void validate(std::unique_ptr<gsl::byte[], Del> const& buffer, size_t len) {
+    detail::raw_element raw {detail::raw_type::object, buffer.get()};
+    detail::valid_buffer<false, std::shared_ptr>(raw, len);
+  }
+
+  /**
+   *  @brief
+   *  Function provides a way to check if an arbitrary buffer of bytes
+   *  can be successfully interpreted as a Dart buffer.
+   *
+   *  @details
+   *  Function validates whether the given network buffer is well formed.
+   *  If the function returns true it does NOT mean that the given buffer
+   *  definitely wasn't corrupted in any way, just that the whole buffer
+   *  is safely traversable, all necessary invariants hold, and it can be
+   *  used without worry of undefined behavior.
+   *
+   *  @remarks
+   *  Function is largely intended to be used when the buffer in question
+   *  came from an untrusted source.
+   */
+  template <class Del>
+  void validate(std::unique_ptr<gsl::byte const, Del> const& buffer, size_t len) {
+    detail::raw_element raw {detail::raw_type::object, buffer.get()};
+    detail::valid_buffer<false, std::shared_ptr>(raw, len);
+  }
+
+  /**
+   *  @brief
+   *  Function provides a way to check if an arbitrary buffer of bytes
+   *  can be successfully interpreted as a Dart buffer.
+   *
+   *  @details
+   *  Function validates whether the given network buffer is well formed.
+   *  If the function returns true it does NOT mean that the given buffer
+   *  definitely wasn't corrupted in any way, just that the whole buffer
+   *  is safely traversable, all necessary invariants hold, and it can be
+   *  used without worry of undefined behavior.
+   *
+   *  @remarks
+   *  Function is largely intended to be used when the buffer in question
+   *  came from an untrusted source.
+   */
+  template <class Del>
+  void validate(std::unique_ptr<gsl::byte const[], Del> const& buffer, size_t len) {
+    detail::raw_element raw {detail::raw_type::object, buffer.get()};
+    detail::valid_buffer<false, std::shared_ptr>(raw, len);
+  }
+
+  /**
+   *  @brief
+   *  Function provides a way to check if an arbitrary buffer of bytes
+   *  can be successfully interpreted as a Dart buffer.
+   *
+   *  @details
+   *  Function validates whether the given network buffer is well formed.
+   *  If the function returns true it does NOT mean that the given buffer
+   *  definitely wasn't corrupted in any way, just that the whole buffer
+   *  is safely traversable, all necessary invariants hold, and it can be
+   *  used without worry of undefined behavior.
+   *
+   *  @remarks
+   *  Function is largely intended to be used when the buffer in question
+   *  came from an untrusted source.
+   */
+  inline void validate(std::shared_ptr<gsl::byte const> const& buffer, size_t len) {
+    detail::raw_element raw {detail::raw_type::object, buffer.get()};
+    detail::valid_buffer<false, std::shared_ptr>(raw, len);
   }
 
 #ifdef DART_USE_SAJSON

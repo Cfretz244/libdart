@@ -188,6 +188,48 @@ SCENARIO("finalized objects can be deep copied", "[object unit]") {
   }
 }
 
+SCENARIO("finalized objects can be validated", "[object unit]") {
+  GIVEN("a finalized object with some contents") {
+    dart::finalized_api_test([] (auto tag, auto idx) {
+      using pkt = typename decltype(tag)::type;
+      constexpr auto custom_len = 1024;
+
+      auto obj = pkt::make_object("hello", "world!").finalize();
+      DYNAMIC_WHEN("we grab access to the underlying network buffer", idx) {
+        auto buf = obj.get_bytes();
+        auto dup = obj.dup_bytes();
+
+        std::shared_ptr<gsl::byte const> ptr {obj.dup_bytes().release(), [] (auto* ptr) { delete[] ptr; }};
+        DYNAMIC_THEN("it validates successfully", idx) {
+          REQUIRE(dart::is_valid(buf));
+          REQUIRE(dart::is_valid(buf.data(), buf.size()));
+          REQUIRE(dart::is_valid(dup, buf.size()));
+          REQUIRE(dart::is_valid(ptr, buf.size()));
+          REQUIRE_NOTHROW(dart::validate(buf));
+          REQUIRE_NOTHROW(dart::validate(buf.data(), buf.size()));
+          REQUIRE_NOTHROW(dart::validate(dup, buf.size()));
+          REQUIRE_NOTHROW(dart::validate(ptr, buf.size()));
+        }
+      }
+
+      DYNAMIC_WHEN("we create our own buffer", idx) {
+        auto buf = std::make_unique<gsl::byte const[]>(custom_len);
+        std::shared_ptr<gsl::byte const> dup(new gsl::byte[custom_len](), [] (auto* ptr) { delete[] ptr; });
+        DYNAMIC_THEN("it fails to validate", idx) {
+          REQUIRE(!dart::is_valid(gsl::make_span(buf.get(), custom_len)));
+          REQUIRE(!dart::is_valid(buf.get(), custom_len));
+          REQUIRE(!dart::is_valid(buf, custom_len));
+          REQUIRE(!dart::is_valid(dup, custom_len));
+          REQUIRE_THROWS_AS(dart::validate(gsl::make_span(buf.get(), custom_len)), dart::validation_error);
+          REQUIRE_THROWS_AS(dart::validate(buf.get(), custom_len), dart::validation_error);
+          REQUIRE_THROWS_AS(dart::validate(buf, custom_len), dart::validation_error);
+          REQUIRE_THROWS_AS(dart::validate(dup, custom_len), dart::validation_error);
+        }
+      }
+    });
+  }
+}
+
 SCENARIO("aliased objects lazily copy data when mutated", "[object unit]") {
   GIVEN("an object") {
     dart::mutable_api_test([] (auto tag, auto idx) {
