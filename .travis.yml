@@ -242,7 +242,7 @@ script:
       cd test
       clang++ -std=c++14 -g -O3 -fsanitize=fuzzer,address -o fuzz fuzz_tests.cc
       mkdir discoveries
-      timeout --preserve-status 1200 ./fuzz fuzzer_input discoveries
+      timeout --preserve-status 600 ./fuzz fuzzer_input discoveries
     else
       mkdir build
       cd build
