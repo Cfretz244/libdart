@@ -107,6 +107,14 @@ namespace dart {
 
   namespace detail {
 
+// Unfortunately some versions of GCC aren't smart enough to figure out that
+// if this function is declared noexcept the throwing cases are dead code
+#if DART_USING_GCC
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpragmas"
+#pragma GCC diagnostic ignored "-Wterminate"
+#endif
+
     template <class T>
     template <bool silent>
     bool primitive<T>::is_valid(size_t bytes) const noexcept(silent) {
@@ -118,6 +126,10 @@ namespace dart {
       }
       return true;
     }
+
+#if DART_USING_GCC
+#pragma GCC diagnostic pop
+#endif
 
     template <class T>
     size_t primitive<T>::get_sizeof() const noexcept {

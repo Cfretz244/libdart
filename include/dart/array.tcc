@@ -299,6 +299,14 @@ namespace dart {
       bytes = static_cast<uint32_t>(offset);
     }
 
+// Unfortunately some versions of GCC aren't smart enough to figure out that
+// if this function is declared noexcept the throwing cases are dead code
+#if DART_USING_GCC
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpragmas"
+#pragma GCC diagnostic ignored "-Wterminate"
+#endif
+
     template <template <class> class RefCount>
     template <bool silent>
     bool array<RefCount>::is_valid(size_t bytes) const noexcept(silent) {
@@ -361,6 +369,10 @@ namespace dart {
       }
       return true;
     }
+
+#if DART_USING_GCC
+#pragma GCC diagnostic pop
+#endif
 
     template <template <class> class RefCount>
     size_t array<RefCount>::size() const noexcept {

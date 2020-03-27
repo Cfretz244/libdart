@@ -63,7 +63,7 @@ extern "C" {
     dummy_output = new char volatile[output_len];
 
     auto bytes = gsl::make_span(data, size);
-    if (dart::validate(bytes)) {
+    if (dart::is_valid(bytes)) {
       dart::buffer buff {bytes};
       explore(buff);
     }
