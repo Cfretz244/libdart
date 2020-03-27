@@ -199,7 +199,10 @@ SCENARIO("finalized objects can be validated", "[object unit]") {
         auto buf = obj.get_bytes();
         auto dup = obj.dup_bytes();
 
-        std::shared_ptr<gsl::byte const> ptr {obj.dup_bytes().release(), [] (auto* ptr) { delete[] ptr; }};
+        std::shared_ptr<gsl::byte const> ptr {
+          obj.dup_bytes().release(),
+          [] (auto* ptr) { dart::shim::aligned_free(const_cast<gsl::byte*>(ptr)); }
+        };
         DYNAMIC_THEN("it validates successfully", idx) {
           REQUIRE(dart::is_valid(buf));
           REQUIRE(dart::is_valid(buf.data(), buf.size()));
